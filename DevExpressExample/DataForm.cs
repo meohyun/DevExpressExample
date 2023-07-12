@@ -13,12 +13,35 @@ using System.IO;
 using System.Data.SqlClient;
 using DevExpress.XtraGrid.Views.Base;
 
+
 namespace DevExpressExample
 {
     public partial class DataForm : DevExpress.XtraEditors.XtraForm
     {
         DataTable dt = new DataTable("donation");  
         MsSqlExample msSqlExample = new MsSqlExample();
+        Rectangle rec;
+
+        // 타이머 객체 생성
+        Timer timer = new Timer();
+
+        // 이동 값
+        int x_value = 0;
+        int y_value = 0;
+
+        // 이동 속도
+        int speed = 15;
+
+        // 현재 위치
+        int cur_position_x = 25;
+        int cur_position_y = 25;
+
+        // 진행 거리
+        int x_distance = 1;
+        int y_distance = 1;
+
+        bool outRange = false;
+
 
         public DataForm()
         {
@@ -29,6 +52,62 @@ namespace DevExpressExample
             this.gridView1.CellValueChanged += GridView1_CellValueChanged;
             SearchBtn.Enabled = false;
             DeleteBtn.Enabled = false;
+
+            rec = new Rectangle(25, 25, 50, 50);
+
+            pictureEdit1.Paint += new PaintEventHandler(pictureEdit1_Paint);
+            pictureEdit1.Properties.NullText = "";
+
+            // 주기 설정
+            timer.Interval = 1000;
+            timer.Tick += new EventHandler(timer_Tick);
+
+        }
+
+        // 직사각형 경로 그리기 
+        private void pictureEdit1_Paint(object sender, PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            Pen linePen = new Pen(Brushes.DeepSkyBlue);
+
+            // 세로
+            Point HeightLinePoint = new Point(50, 50);
+            Point HeightLinePoint2 = new Point(50, 365);
+
+            Point HeightLinePoint3 = new Point(905, 50);
+            Point HeightLinePoint4 = new Point(905, 365);
+
+            // 가로 
+            Point WidthLinePoint = new Point(50, 50);
+            Point WidthLinePoint2 = new Point(905, 50);
+
+            Point WidthLinePoint3 = new Point(50, 365);
+            Point WidthLinePoint4 = new Point(905, 365);
+
+
+            // 시작 위치에 원 위치 
+            
+            g.FillEllipse(Brushes.Blue, rec);
+
+            g.DrawLine(linePen, HeightLinePoint, HeightLinePoint2);
+            g.DrawLine(linePen, HeightLinePoint3, HeightLinePoint4);
+            g.DrawLine(linePen, WidthLinePoint, WidthLinePoint2);
+            g.DrawLine(linePen, WidthLinePoint3, WidthLinePoint4);
+
+            // 경로 선에 노드 표시 
+            for (int i =0; i <20; i++)
+            {
+                // 가로 깔기
+                g.FillEllipse(Brushes.Black, (HeightLinePoint.X-5) * (i+1), HeightLinePoint.Y-5,10,10);
+                g.FillEllipse(Brushes.Black, (HeightLinePoint2.X-5) * (i+1), HeightLinePoint2.Y-5,10,10);
+            }
+
+            for (int i =1; i < 8; i++)
+            {
+                //세로 깔기 
+                g.FillEllipse(Brushes.Black, WidthLinePoint.X - 5, (WidthLinePoint.Y - 5) * i,10,10);
+                g.FillEllipse(Brushes.Black, WidthLinePoint2.X - 5, (WidthLinePoint2.Y - 5) * i, 10, 10);
+            }
         }
 
         // 셀이 수정됨을 감지하면 수정 버튼 활성화 
@@ -76,8 +155,8 @@ namespace DevExpressExample
             msSqlExample.SelectDataDB(dt);
 
             gridControl1.DataSource = dt;
-            
-        }
+      
+        }      
 
         // 데이터 리셋 
         private void ResetBtn_Click(object sender, EventArgs e)
@@ -234,6 +313,146 @@ namespace DevExpressExample
             {
                 new Login().Show();
                 this.Hide();
+            }
+        }
+
+        /// 도형 움직이기 Tab
+        /// 
+
+        public void timer_Tick(object sender, EventArgs e)
+        {
+            x_distance = 45 * x_value;
+            y_distance = 45 * y_value;
+
+            // 현재위치에서 진행거리 만큼 왔을때 타이머 stop
+            if (rec.X == cur_position_x + x_distance)
+            {
+                cur_position_x = rec.X;
+
+                if(x_value !=0)
+                    timer.Stop();
+            }
+            else if (outRange == false)
+            {
+                rec.X += speed; 
+            }
+
+            // 현재위치에서 진행거리 만큼 왔을때 타이머 stop
+            if (rec.Y == cur_position_y + y_distance)
+            {
+                cur_position_y = rec.Y;
+
+                if(y_value != 0)
+                   timer.Stop();
+            }
+            else if (outRange == false)
+            {
+                rec.Y += speed; 
+            }
+
+            /// 예외처리
+            /// 
+
+            // 경로 안쪽으로는 이동 불가능
+            if ((rec.X >= 30 && rec.X <= 805) && (rec.Y >= 30 && rec.Y <= 320) || (rec.X > 880 || rec.X < 25) || (rec.Y > 340 || rec.Y < 25))
+            {
+                outRange = true;
+                timer.Stop();
+                MessageBox.Show("경로가 아닌 곳으로 이동할 수 없습니다.", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                rec.X = cur_position_x;
+                rec.Y = cur_position_y;
+                
+            }
+            else
+            {
+                outRange = false;
+            }
+           
+            pictureEdit1.Invalidate();
+
+            // 타이머가 멈췄을때만 경로 지정 가능
+            if (timer.Enabled == false)
+            {
+                setPointBtn.Enabled = true;
+            }
+
+        }
+
+        // 경로 지정
+        private void setPointBtn_Click(object sender, EventArgs e)
+        {
+            // 경로 지정시 이동이 끝날때 까지는 재지정 불가
+            setPointBtn.Enabled = false;
+
+            speed = 15;
+            x_distance = 45 * x_value;
+            y_distance = 45 * y_value;
+
+            // 좌표값이 null일 경우
+            if (xBox.Text.Length == 0 || yBox.Text.Length == 0)
+            {
+                MessageBox.Show("이동할 값을 설정하세요.", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            else if (xBox.Text.Length > 0 && yBox.Text.Length > 0)
+            {
+                x_value = int.Parse(xBox.Text);
+                y_value = int.Parse(yBox.Text);
+            }
+
+            // - 포함시 역방향으로 움직임.
+            if (xBox.Text.Contains('-'))
+            {
+                speed *= -1;
+            }
+            if (yBox.Text.Contains('-'))
+            {
+                speed *= -1;
+            }
+
+            timer.Start();
+
+            
+        }
+        // 출발지로 다시 리셋
+        private void resetPathBtn_Click(object sender, EventArgs e)
+        {
+            xBox.Text = "0";
+            yBox.Text = "0";
+
+            rec.X = 25;
+            rec.Y = 25;
+            cur_position_x = rec.X;
+            cur_position_y = rec.Y;
+            setPointBtn.Enabled = true;
+
+            pictureEdit1.Invalidate();
+            timer.Stop();
+        }
+
+        // x,y 좌표는 int값만 받도록
+        private void xBox_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if(!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && (e.KeyChar != '-'))
+            {
+                e.Handled = true;
+            }
+
+            if ((e.KeyChar == '-') && ((sender as TextBox).Text.IndexOf('-') > -1))
+            {
+                e.Handled = true;
+            }
+
+        }
+
+        private void yBox_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && (e.KeyChar != '-'))
+            {
+                e.Handled = true;
+            }
+            if ((e.KeyChar == '-') && ((sender as TextBox).Text.IndexOf('-') > -1))
+            {
+                e.Handled = true;
             }
         }
     }
