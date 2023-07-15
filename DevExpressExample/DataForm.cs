@@ -18,29 +18,52 @@ namespace DevExpressExample
 {
     public partial class DataForm : DevExpress.XtraEditors.XtraForm
     {
-        DataTable dt = new DataTable("donation");  
+        DataTable dt = new DataTable("donation");
         MsSqlExample msSqlExample = new MsSqlExample();
         Rectangle rec;
+        Rectangle rack;
 
         // 타이머 객체 생성
-        Timer timer = new Timer();
-
-        // 이동 값
-        int x_value = 0;
-        int y_value = 0;
+        Timer racktimer = new Timer();
 
         // 이동 속도
-        int speed = 15;
+        int x_speed = 15;
+        int y_speed = 15;
 
         // 현재 위치
         int cur_position_x = 25;
         int cur_position_y = 25;
 
-        // 진행 거리
-        int x_distance = 1;
-        int y_distance = 1;
-
+        // 범위를 벗어났는가?
         bool outRange = false;
+
+        // x,y 좌표로 움직이는 중인가
+        bool x_moving = true;
+        bool y_moving = true;
+
+        // 선반 번호
+        int rackNum = 0;
+
+        // 선반 위치 포인트 초기화
+        Point rackPoint = new Point(25, 25);
+
+        // 선반 라벨
+        Label racklabel;
+
+        // 선반 라벨 폰트
+        Font font = new Font("Arial", 12);
+
+        // load 중인가
+        bool isLoad = false;
+
+        // 입고점으로 다시 가는 중인가
+        bool isReset = false;
+
+        // 출고점으로 이동 중인가
+        bool isRelease = false;
+
+        // 적재한 화물 랙 번호 리스트 
+        List<int> rackList = new List<int>();
 
 
         public DataForm()
@@ -48,66 +71,24 @@ namespace DevExpressExample
             InitializeComponent();
             // 데브폼 켜질때 이벤트 추가 
             this.Shown += DevForm_Shown;
+
             // 셀 값이 바뀔때 이벤트 추가
             this.gridView1.CellValueChanged += GridView1_CellValueChanged;
             SearchBtn.Enabled = false;
             DeleteBtn.Enabled = false;
 
+            // 초기 위치 설정(도형,랙)
             rec = new Rectangle(25, 25, 50, 50);
+            rack = new Rectangle(170,75,30,40);
 
-            pictureEdit1.Paint += new PaintEventHandler(pictureEdit1_Paint);
-            pictureEdit1.Properties.NullText = "";
+            // pictureEdit 이벤트 
+            pictureEdit1.Paint += new PaintEventHandler(PictureEdit1_Paint);
 
-            // 주기 설정
-            timer.Interval = 1000;
-            timer.Tick += new EventHandler(timer_Tick);
+            // 선반으로 움직일때 사용하는 타이머
+            racktimer.Interval = 200;
+            racktimer.Tick += new EventHandler(RackTimer_Tick);
 
-        }
-
-        // 직사각형 경로 그리기 
-        private void pictureEdit1_Paint(object sender, PaintEventArgs e)
-        {
-            Graphics g = e.Graphics;
-            Pen linePen = new Pen(Brushes.DeepSkyBlue);
-
-            // 세로
-            Point HeightLinePoint = new Point(50, 50);
-            Point HeightLinePoint2 = new Point(50, 365);
-
-            Point HeightLinePoint3 = new Point(905, 50);
-            Point HeightLinePoint4 = new Point(905, 365);
-
-            // 가로 
-            Point WidthLinePoint = new Point(50, 50);
-            Point WidthLinePoint2 = new Point(905, 50);
-
-            Point WidthLinePoint3 = new Point(50, 365);
-            Point WidthLinePoint4 = new Point(905, 365);
-
-
-            // 시작 위치에 원 위치 
             
-            g.FillEllipse(Brushes.Blue, rec);
-
-            g.DrawLine(linePen, HeightLinePoint, HeightLinePoint2);
-            g.DrawLine(linePen, HeightLinePoint3, HeightLinePoint4);
-            g.DrawLine(linePen, WidthLinePoint, WidthLinePoint2);
-            g.DrawLine(linePen, WidthLinePoint3, WidthLinePoint4);
-
-            // 경로 선에 노드 표시 
-            for (int i =0; i <20; i++)
-            {
-                // 가로 깔기
-                g.FillEllipse(Brushes.Black, (HeightLinePoint.X-5) * (i+1), HeightLinePoint.Y-5,10,10);
-                g.FillEllipse(Brushes.Black, (HeightLinePoint2.X-5) * (i+1), HeightLinePoint2.Y-5,10,10);
-            }
-
-            for (int i =1; i < 8; i++)
-            {
-                //세로 깔기 
-                g.FillEllipse(Brushes.Black, WidthLinePoint.X - 5, (WidthLinePoint.Y - 5) * i,10,10);
-                g.FillEllipse(Brushes.Black, WidthLinePoint2.X - 5, (WidthLinePoint2.Y - 5) * i, 10, 10);
-            }
         }
 
         // 셀이 수정됨을 감지하면 수정 버튼 활성화 
@@ -132,6 +113,9 @@ namespace DevExpressExample
             ResetBtn.Enabled = false;
             SearchBtn.Enabled = false;
             UpdateBtn.Enabled = false;
+
+            RackLoadBtn.Enabled = false;
+            RackUnLoadBtn.Enabled = false;
         }
 
         // 데이터 로드 
@@ -155,7 +139,6 @@ namespace DevExpressExample
             msSqlExample.SelectDataDB(dt);
 
             gridControl1.DataSource = dt;
-      
         }      
 
         // 데이터 리셋 
@@ -290,7 +273,6 @@ namespace DevExpressExample
         // 데이터 수정
         private void UpdateBtn_Click(object sender, EventArgs e)
         {
-
             DialogResult res = MessageBox.Show("데이터를 수정하시겠습니까?", "수정", MessageBoxButtons.YesNo);
 
             if (res == DialogResult.Yes)
@@ -318,141 +300,431 @@ namespace DevExpressExample
 
         /// 도형 움직이기 Tab
         /// 
-
-        public void timer_Tick(object sender, EventArgs e)
+        // 경로 그리기 
+        private void PictureEdit1_Paint(object sender, PaintEventArgs e)
         {
-            x_distance = 45 * x_value;
-            y_distance = 45 * y_value;
+            Graphics g = e.Graphics;
+            Pen linePen = new Pen(Brushes.DeepSkyBlue);
 
-            // 현재위치에서 진행거리 만큼 왔을때 타이머 stop
-            if (rec.X == cur_position_x + x_distance)
+            // 세로
+            Point HeightLinePoint = new Point(50, 50);
+            Point HeightLinePoint2 = new Point(50, 365);
+
+            Point HeightLinePoint3 = new Point(950, 50);
+            Point HeightLinePoint4 = new Point(950, 365);
+
+            // 가로 
+            Point WidthLinePoint = new Point(50, 50);
+            Point WidthLinePoint2 = new Point(950, 50);
+
+            Point WidthLinePoint3 = new Point(50, 365);
+            Point WidthLinePoint4 = new Point(950, 365);
+
+            pictureEdit1.Properties.NullText = " ";
+
+            // 시작 위치에 원 위치
+            g.FillEllipse(Brushes.Blue, rec);
+
+            // 경로 선 긋기
+            g.DrawLine(linePen, HeightLinePoint, HeightLinePoint2);
+            g.DrawLine(linePen, HeightLinePoint3, HeightLinePoint4);
+            for (int i = 1; i < 5; i++)
             {
-                cur_position_x = rec.X;
+                g.DrawLine(linePen, new Point(50 + 180 * i, 50), new Point(50 + 180 * i, 365));
 
-                if(x_value !=0)
-                    timer.Stop();
+                // 선반 이동 경로 생성  (초록색 점)
+                for (int j = 1; j < 8; j++)
+                {
+                    g.FillEllipse(Brushes.Green, 45 + 180 * i, 45 * j, 10, 10);
+                }
+
             }
-            else if (outRange == false)
+            g.DrawLine(linePen, WidthLinePoint, WidthLinePoint2);
+            g.DrawLine(linePen, WidthLinePoint3, WidthLinePoint4);
+
+            // 선에 노드 표시 
+            for (int i = 0; i < 20; i++)
             {
-                rec.X += speed; 
+                // 가로 깔기
+                g.FillEllipse(Brushes.Black, (HeightLinePoint.X - 5) * (i + 1), HeightLinePoint.Y - 5, 10, 10);
+                g.FillEllipse(Brushes.Black, (HeightLinePoint2.X - 5) * (i + 1), HeightLinePoint2.Y - 5, 10, 10);
             }
 
-            // 현재위치에서 진행거리 만큼 왔을때 타이머 stop
-            if (rec.Y == cur_position_y + y_distance)
+            for (int i = 1; i < 9; i++)
             {
-                cur_position_y = rec.Y;
+                //세로 깔기 
+                g.FillEllipse(Brushes.Black, WidthLinePoint.X - 5, (WidthLinePoint.Y - 5) * i, 10, 10);
+                g.FillEllipse(Brushes.Black, WidthLinePoint2.X - 5, (WidthLinePoint2.Y - 5) * i, 10, 10);
 
-                if(y_value != 0)
-                   timer.Stop();
-            }
-            else if (outRange == false)
-            {
-                rec.Y += speed; 
             }
 
-            /// 예외처리
-            /// 
+            List<Label> labels = new List<Label>();
 
-            // 경로 안쪽으로는 이동 불가능
-            if ((rec.X >= 30 && rec.X <= 805) && (rec.Y >= 30 && rec.Y <= 320) || (rec.X > 880 || rec.X < 25) || (rec.Y > 340 || rec.Y < 25))
+            for (int i = 0; i<24; i++)
             {
-                outRange = true;
-                timer.Stop();
-                MessageBox.Show("경로가 아닌 곳으로 이동할 수 없습니다.", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                rec.X = cur_position_x;
-                rec.Y = cur_position_y;
-                
+                racklabel = new Label();
+                labels.Add(racklabel);
+            }
+
+            
+            // 랙 깔기
+            for (int j = 0; j < 4; j++)
+            {
+                for (int i = 0; i < 6; i++)
+                {
+                    // 랙 깔기
+                    g.DrawRectangle(Pens.Brown, rack.X +(180 *j), rack.Y + (45 * i), 30, 45);
+                }
+            }
+        }
+
+        // 선반으로 움직일때 사용하는 타이머
+        private void RackTimer_Tick(object sender, EventArgs e)
+        {
+
+            // 움직일때는 이동 및 load,unload 불가
+            RackLoadBtn.Enabled = false;
+            RackUnLoadBtn.Enabled = false;
+            ResetPathBtn.Enabled = false;
+            ReleasePathBtn.Enabled = false;
+
+
+            // 6으로 나눈 몫을 올림
+            double ceilingvalue = Math.Ceiling((double)rackNum / 6);
+
+            // 선반 위치 포인트
+            rackPoint = new Point((int)(25 + 45 * (ceilingvalue * 4)), (int)((25 + 45 * (rackNum - (6 * (ceilingvalue-1))))));
+
+            // 출고점으로 이동
+            if (isRelease == true)
+            {
+                rackPoint = new Point(925, 340);
+            }
+
+            // 입고점(시작위치)으로 이동
+            if(isReset == true)
+            {
+                rackPoint = new Point(25, 25);
+            }
+
+            // 해당 위치가 랙 위치 포인트보다 클때는 역방향(-) 아니면 정방향 (+)
+            if (rec.X > rackPoint.X)
+            {
+                x_speed = -15;
+            } 
+            else 
+            {
+                x_speed = 15; 
+            }
+            if(rec.Y > rackPoint.Y && rec.X  == rackPoint.X)
+            {
+                y_speed = -15;
             }
             else
             {
+                y_speed = 15;
+            }
+
+            // 현재위치에서 진행거리 만큼 왔을때 타이머 stop
+            if (rec.X == rackPoint.X)
+            {
+                cur_position_x = rec.X;
+                x_moving = false;
+                if (y_moving == false)
+                {
+                    racktimer.Stop();
+                }
+            }
+            else if (outRange == false && x_moving)
+            {
+                rec.X += x_speed;
+            }
+
+            // x좌표로 움직인 다음 y좌표로 이동 
+            if (x_moving == false)
+            {
+                // 현재위치에서 진행거리 만큼 왔을때 타이머 stop
+                if (rec.Y == rackPoint.Y)
+                {
+                    cur_position_y = rec.Y;
+                    y_moving = false;
+                    racktimer.Stop();
+                }
+                else if (outRange == false && y_moving)
+                {
+                    rec.Y += y_speed;
+                }
+            }
+
+            // 경로 벗어나서는 이동 불가능
+            if (((rec.X > 25 && rec.X < 205) || (rec.X > 205 && rec.X < 385) || (rec.X > 385 && rec.X < 565) || (rec.X > 565 && rec.X < 745) || (rec.X > 745 && rec.X < 925)) && (rec.Y > 25 && rec.Y < 320) || (rec.X > 925 || rec.X < 25) || (rec.Y > 340 || rec.Y < 25))
+            {
+                outRange = true;
+
+                rec.X = cur_position_x;
+                rec.Y = cur_position_y;
+
+                startBtn.Enabled = true;
+            }
+
+            if (outRange == true)
+            {
+                // 랙 1~3 번까지는 위로 이동
+                if (rec.Y < 195)
+                {
+                    rec.Y -= y_speed;
+                }
+                // 랙 4~6번까지는 밑으로 이동 
+                else if (rec.Y >= 195)
+                {
+                    rec.Y += y_speed;
+                }
+            }
+
+            if (rec.Y == 340 || rec.Y == 25)
+            {
                 outRange = false;
             }
-           
+
+            // 타이머가 멈췄을때 = 목적지 도착 버튼 활성화 및 boolean값 초기화
+            if (racktimer.Enabled == false){
+                // 현재 시간
+                string now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                startBtn.Enabled = true;
+                RackLoadBtn.Enabled = true;
+                RackUnLoadBtn.Enabled = true;
+                ResetPathBtn.Enabled = true;
+                ReleasePathBtn.Enabled = true;
+
+                // 랙으로 이동 했을때
+                if (isRelease == false && isReset ==  false)
+                {
+                    LogListBox.Items.Add(now + $"     목적지 도착");
+                    RackLoadBtn.Enabled = true;
+                    RackUnLoadBtn.Enabled = true;
+                }
+                // 출고점
+                else if (isRelease == true)
+                {
+                    LogListBox.Items.Add(now + "     출고점 도착");
+                    ReleasePathBtn.Enabled = false;
+                    RackLoadBtn.Enabled = false;
+
+                }
+                // 입고점
+                else if (isReset == true)
+                {
+                    LogListBox.Items.Add(now + "     입고점 도착");
+                    ResetPathBtn.Enabled = false;
+                    RackLoadBtn.Enabled = false;
+                    RackUnLoadBtn.Enabled = false;
+                }
+                
+                x_moving = true;
+                y_moving = true;
+                isLoad = false;
+
+                // 로그가 생기면 스크롤바를 아래로 내림.
+                LogListBox.MakeItemVisible(LogListBox.ItemCount);
+            }
+
             pictureEdit1.Invalidate();
 
-            // 타이머가 멈췄을때만 경로 지정 가능
-            if (timer.Enabled == false)
-            {
-                setPointBtn.Enabled = true;
-            }
-
+            xyPositionLabel.Text = string.Format("X : {0}   Y : {1}", rec.X, rec.Y);
         }
 
-        // 경로 지정
-        private void setPointBtn_Click(object sender, EventArgs e)
+        // 랙 경로 지정
+        private void SetRackPathBtn_Click(object sender, EventArgs e)
         {
-            // 경로 지정시 이동이 끝날때 까지는 재지정 불가
-            setPointBtn.Enabled = false;
+            // 현재 시간
+            string now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
-            speed = 15;
-            x_distance = 45 * x_value;
-            y_distance = 45 * y_value;
+            // 이동 중 적재 불가
+            RackLoadBtn.Enabled = false;
+            RackUnLoadBtn.Enabled = false;
 
-            // 좌표값이 null일 경우
-            if (xBox.Text.Length == 0 || yBox.Text.Length == 0)
+            // 초기화
+            isRelease = false;
+            isReset = false;
+
+            // null값 허용 x 
+            if (rackNumTxt.Text.Length != 0)
             {
-                MessageBox.Show("이동할 값을 설정하세요.", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                rackNum = int.Parse(rackNumTxt.Text);
+
+                if (rackNum <= 0 || rackNum > 24)
+                {
+                    MessageBox.Show("선반 번호가 아닙니다.", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
             }
-            else if (xBox.Text.Length > 0 && yBox.Text.Length > 0)
+            else
             {
-                x_value = int.Parse(xBox.Text);
-                y_value = int.Parse(yBox.Text);
+                MessageBox.Show("선반 번호를 지정해주세요.", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
             }
 
-            // - 포함시 역방향으로 움직임.
-            if (xBox.Text.Contains('-'))
-            {
-                speed *= -1;
-            }
-            if (yBox.Text.Contains('-'))
-            {
-                speed *= -1;
-            }
+            LogListBox.Items.Add(now+ $"     {rackNum}번 선반으로 이동");
+            startBtn.Enabled = false;
+            outRange = false;
 
-            timer.Start();
+            racktimer.Start();
+        }
+
+        // 적재 버튼
+        private void RackLoadBtn_Click(object sender, EventArgs e)
+        {
+            // 현재 시간
+            string now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
             
+            // 해당 번호의 화물을 적재하지 않았다면 적재 가능.
+            if (isLoad == false && !rackList.Contains(rackNum))
+            {
+                isLoad = true;
+                RackNumBox.Text += rackNum;
+                rackList.Add(rackNum);
+                LogListBox.Items.Add(now + $"     {rackNum}번 화물 적재 완료!");
+            }
+            else
+            {
+                MessageBox.Show($"이미 {rackNum}번 화물을 적재했습니다.", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }  
+
+
+            // 새로운 로그가 있을때 자동으로 스크롤바 내림.
+            LogListBox.MakeItemVisible(LogListBox.ItemCount);
         }
-        // 출발지로 다시 리셋
-        private void resetPathBtn_Click(object sender, EventArgs e)
-        {
-            xBox.Text = "0";
-            yBox.Text = "0";
 
-            rec.X = 25;
-            rec.Y = 25;
-            cur_position_x = rec.X;
-            cur_position_y = rec.Y;
-            setPointBtn.Enabled = true;
+        // 화물 unload
+        private void RackUnloadBtn_Click(object sender, EventArgs e)
+        { 
 
-            pictureEdit1.Invalidate();
-            timer.Stop();
+            // 현재 시간
+            string now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+            // 출고지에 있다면 unload 가능
+            if (isRelease == true || rackList.Contains(rackNum))
+            {
+                // 화물이 있다면 unload ,없다면 unload x
+                if (rackList.Count != 0)
+                {
+                    string a = "";
+
+                    // 출고지에서는 하역시 모든 화물 unload
+                    if (isRelease == true)
+                    {
+                        foreach (int num in rackList)
+                        {
+                            a += num.ToString() + "번 ";
+                        }
+                        LogListBox.Items.Add(now + $"     {a}랙의 화물을 Unload 하였습니다.");
+                        rackList.Clear();
+                        RackNumBox.Text = "";
+                    }
+                    // 랙에서는 해당 번호의 화물만 unload
+                    else if (isRelease == false)
+                    {
+                        a += rackNum.ToString() + "번 ";
+                        LogListBox.Items.Add(now + $"     {a}랙의 화물을 Unload 하였습니다.");
+                        int idx = rackList.FindIndex(x => x == rackNum);
+                        rackList.RemoveAt(idx);
+                        isLoad = false;
+                        string nums = "";
+                        foreach (int num in rackList)
+                        {
+                            nums += num;
+                        }
+                        RackNumBox.Text = nums;
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Unload할 화물이 없습니다.", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+            }
+            else
+            {
+                MessageBox.Show("Unload 할 화물이 없습니다.", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            // 새로운 로그가 있을때 자동으로 스크롤바 내림.
+            LogListBox.MakeItemVisible(LogListBox.ItemCount);
         }
 
-        // x,y 좌표는 int값만 받도록
-        private void xBox_KeyPress(object sender, KeyPressEventArgs e)
+        // 입고위치로 이동(초기 위치)
+        private void ResetPathBtn_Click(object sender, EventArgs e)
         {
-            if(!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && (e.KeyChar != '-'))
+            // 현재 시간
+            string now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+            LogListBox.Items.Add(now+"     초기 위치로 돌아갑니다.");
+            isReset = true;
+            isRelease = false;
+            rackNumTxt.Text = "";
+            rackList.Clear();
+            RackLoadBtn.Enabled = false;
+            RackUnLoadBtn.Enabled = false;
+
+            racktimer.Start();
+        }
+
+        // 출고위치로 이동
+        private void ReleasePathBtn_Click(object sender, EventArgs e)
+        {
+            // 현재 시간
+            string now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+            LogListBox.Items.Add(now+"     출고점으로 이동합니다.");
+            isReset = false;
+            isRelease = true;
+            racktimer.Start();
+
+        }
+
+
+        // 숫자만 받도록
+        private void RackNumTxt_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if(!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar))
             {
                 e.Handled = true;
             }
-
-            if ((e.KeyChar == '-') && ((sender as TextBox).Text.IndexOf('-') > -1))
-            {
-                e.Handled = true;
-            }
-
         }
 
-        private void yBox_KeyPress(object sender, KeyPressEventArgs e)
+        // 랙 번호 놓기 
+        private void XtraTabPage3_Paint(object sender, PaintEventArgs e)
         {
-            if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && (e.KeyChar != '-'))
+            int count = 0;
+
+            // 프로그램의 GDI 개체가 10,000개를 넘으면 윈도우 핸들러 에러가 발생하기때문에 Dispose 해줘야 한다.
+            while (pictureEdit1.Controls.Count > 0)
             {
-                e.Handled = true;
+                pictureEdit1.Controls[0].Dispose();
             }
-            if ((e.KeyChar == '-') && ((sender as TextBox).Text.IndexOf('-') > -1))
+
+            // 랙 깔기
+            for (int j = 0; j < 4; j++)
             {
-                e.Handled = true;
+                for (int i = 0; i < 6; i++)
+                {
+                    count++;
+                    // 랙 숫자 라벨 
+                    racklabel = new Label();
+                    racklabel.AutoSize = true;
+                    racklabel.Size = new System.Drawing.Size(0, 0);
+                    racklabel.Font = font;
+                    racklabel.Visible = true;
+
+                    racklabel.Location = new Point(rack.X + (180 * j) + 3, rack.Y + (45 * i) + 15);
+                    racklabel.Text = count.ToString();
+                    racklabel.Name = "Label" + racklabel.Text;
+                    pictureEdit1.Controls.Add(racklabel);
+
+                }
             }
         }
     }
