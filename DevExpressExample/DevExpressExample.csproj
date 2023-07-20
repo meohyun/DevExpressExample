@@ -55,6 +55,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AGVInfo.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AGVInfo.Designer.cs">
+      <DependentUpon>AGVInfo.cs</DependentUpon>
+    </Compile>
     <Compile Include="FindId.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -70,11 +76,11 @@
     <Compile Include="MsSqlExample.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="DataForm.cs">
+    <Compile Include="AGVForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="DataForm.Designer.cs">
-      <DependentUpon>DataForm.cs</DependentUpon>
+    <Compile Include="AGVForm.Designer.cs">
+      <DependentUpon>AGVForm.cs</DependentUpon>
     </Compile>
     <Compile Include="UserCreate.cs">
       <SubType>Form</SubType>
@@ -82,6 +88,9 @@
     <Compile Include="UserCreate.Designer.cs">
       <DependentUpon>UserCreate.cs</DependentUpon>
     </Compile>
+    <EmbeddedResource Include="AGVInfo.resx">
+      <DependentUpon>AGVInfo.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="FindId.resx">
       <DependentUpon>FindId.cs</DependentUpon>
     </EmbeddedResource>
@@ -99,8 +108,8 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
-    <EmbeddedResource Include="DataForm.resx">
-      <DependentUpon>DataForm.cs</DependentUpon>
+    <EmbeddedResource Include="AGVForm.resx">
+      <DependentUpon>AGVForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="UserCreate.resx">
       <DependentUpon>UserCreate.cs</DependentUpon>
@@ -120,6 +129,18 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="ArrowBtn.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\AGV.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\AGV1.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\AGV-removebg-preview.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\My project-1.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

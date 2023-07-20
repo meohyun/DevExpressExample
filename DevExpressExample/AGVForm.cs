@@ -16,15 +16,13 @@ using DevExpress.XtraGrid.Views.Base;
 
 namespace DevExpressExample
 {
-    public partial class DataForm : DevExpress.XtraEditors.XtraForm
+    public partial class AGVForm : DevExpress.XtraEditors.XtraForm
     {
         DataTable dt = new DataTable("donation");
         MsSqlExample msSqlExample = new MsSqlExample();
+
         Rectangle rec;
         Rectangle rack;
-
-        // 타이머 객체 생성
-        Timer racktimer = new Timer();
 
         // 이동 속도
         int x_speed = 15;
@@ -37,12 +35,11 @@ namespace DevExpressExample
         // 범위를 벗어났는가?
         bool outRange = false;
 
-        // x,y 좌표로 움직이는 중인가
+        // x좌표로 움직이는 중인가
         bool x_moving = true;
-        bool y_moving = true;
 
         // 선반 번호
-        int rackNum = 0;
+        public int rackNum = 0;
 
         // 선반 위치 포인트 초기화
         Point rackPoint = new Point(25, 25);
@@ -51,29 +48,76 @@ namespace DevExpressExample
         Label racklabel;
 
         // 선반 라벨 폰트
-        Font font = new Font("Arial", 12);
+        private readonly Font font = new Font("Arial", 12);
 
         // load 중인가
         bool isLoad = false;
 
         // 입고점으로 다시 가는 중인가
-        bool isReset = false;
+        bool isReceive = false;
 
         // 출고점으로 이동 중인가
         bool isRelease = false;
 
         // 적재한 화물 랙 번호 리스트 
-        List<int> rackList = new List<int>();
+        private readonly List<int> rackList = new List<int>();
 
+        // 적재한 화물 text
+        string loadfreightText = "";
 
-        public DataForm()
+        // 출고한 횟수
+        int releaseCount = 0;
+
+        // AGV 상태
+        string state;
+
+        // 출고한 화물 
+        private readonly List<string> releaseFreightList = new List<string>();
+
+        // 이동 경로
+        string movingPath = "";
+
+        // agvdata 폼 객체 생
+        AGVInfo agv = new AGVInfo();
+
+        // 랙 포인트 리스트
+        List<Point> rackPointList = new List<Point>();
+
+        // 모든 경로 리스트 
+        List<Point> backgroundPointList = new List<Point>();
+
+        public class link
+        {
+            // 하나의 노드
+            public Point node1 = new Point(0,0);
+            // 이어진 노드
+            public Point node2 = new Point(0,0);
+
+            // 삼방향 노드인가
+            public bool isThreeNode = false;
+
+            public bool isLeftWay = false;
+            public bool isRightWay = false;
+            public bool isUnderWay = false;
+        }
+
+        // 링크 리스트 
+        List<link> racklinklist = new List<link>();
+        List<link> backgroundlinklist = new List<link>();
+
+        // 시간
+        int time = 0;
+
+        // 이전의 랙 넘버를 저장하는 리스트
+        private readonly List<int> beforenum = new List<int> { 0 };
+
+        public AGVForm()
         {
             InitializeComponent();
             // 데브폼 켜질때 이벤트 추가 
             this.Shown += DevForm_Shown;
 
             // 셀 값이 바뀔때 이벤트 추가
-            this.gridView1.CellValueChanged += GridView1_CellValueChanged;
             SearchBtn.Enabled = false;
             DeleteBtn.Enabled = false;
 
@@ -83,39 +127,144 @@ namespace DevExpressExample
 
             // pictureEdit 이벤트 
             pictureEdit1.Paint += new PaintEventHandler(PictureEdit1_Paint);
+            pictureEdit1.MouseDown += new MouseEventHandler(PictureEdit1_MouseDown);
 
-            // 선반으로 움직일때 사용하는 타이머
-            racktimer.Interval = 200;
-            racktimer.Tick += new EventHandler(RackTimer_Tick);
+            // 랙으로 움직일때 사용하는 타이머
+            timer1.Tick += new EventHandler(RackTimer_Tick);
 
-            
+            // 시간 측정 타이머
+            timer2.Tick += new EventHandler(Timer_Tick);
+
+            agv.FormClosing += new FormClosingEventHandler(Agv_FormClosing);
+            this.FormClosing += new FormClosingEventHandler(this_FormClosing);
+            this.FormClosed += new FormClosedEventHandler(this_FormClosed);
+
+            // 초기 위치 상태
+            state = "입고지 정차";
+
+            // 6으로 나눈 몫을 올림
+            double ceilingvalue = Math.Ceiling((double)rackNum / 6);
+
+            // 랙 위치 포인트
+            for (int i=1; i < 5; i++)
+            {
+                for (int j=1; j < 7; j++)
+                {
+                    rackPointList.Add(new Point(25 + 45 * (i*4), 25 + (45 * j)));
+                }
+            }
+
+            // 백그라운드 노드 포인트 생성
+            for (int i = 0; i<20; i++)
+            {
+                backgroundPointList.Add(new Point(25 + 45 * i, 25));
+            }
+
+            for (int i =0; i < 7; i++)
+            {
+                backgroundPointList.Add(new Point(925, 25+45*i));
+            }
+
+            for (int i=0; i < 20; i++)
+            {
+                backgroundPointList.Add(new Point(925-45*i,340));
+            }
+
+            for (int i =0; i<7; i++)
+            {
+                backgroundPointList.Add(new Point(25,340-45*i));
+            }
+
+            // 링크 리스트 생성
+             CreateLink(rackPointList,racklinklist);
+
+             CreateLink(backgroundPointList,backgroundlinklist);
+
+
+            // 링크리스트 마지막 부분 예외처리 
+            for (int i =0; i < racklinklist.Count; i++)
+            {
+                if (i % 5 == 0 && i != 0 )
+                {
+                    racklinklist.RemoveAt(i);
+                }
+            }
+
+            // 랙으로 향하는 노드는 삼방향 노드 
+            for (int i=0; i< 16; i++)
+            {
+                if (i % 4 == 0 && i != 0)
+                {
+                    racklinklist[i].isThreeNode = true;
+                }
+            }
+            for (int i=31; i < 43; i++)
+            {
+                if (i% 4 == 3)
+                {
+                    racklinklist[i].isThreeNode = true;
+                }
+            }
         }
 
-        // 셀이 수정됨을 감지하면 수정 버튼 활성화 
-        private void GridView1_CellValueChanged(object sender, CellValueChangedEventArgs e)
+        // 링크 생성 
+        public void CreateLink(List<Point> nodelist,List<link> linklist)
         {
-            UpdateBtn.Enabled = true;
+            for (int i = 0; i < nodelist.Count; i++)
+            {
+                // 링크 객체 생성
+                link newlink = new link();
+
+               // 이전 노드의 Point
+                newlink.node1 = nodelist[i];
+
+               // 만약 마지막 노드 전이면 노드 리스트의 첫번째와 이어짐.
+                if (i == nodelist.Count - 1)
+                   newlink.node2 = nodelist[0];
+
+              // 그렇지 않다면 계속해서 다음 노드를 추가해 나간다.
+                else
+                  newlink.node2 = nodelist[i + 1];
+
+              // 링크 리스트에 링크를 추가한다.
+                  linklist.Add(newlink); 
+            }
+        }
+
+        // AGV 운행시간
+        private void Timer_Tick(object sender, EventArgs e)
+        {
+            time += 1;
+            agv.moveTimeLabel.Text = (time / 60) + ":" + (time % 60);
+        }
+
+        // 로그아웃
+        private void LogoutBtn_Click(object sender, EventArgs e)
+        {
+            DialogResult res = MessageBox.Show("로그아웃 하시겠습니까?", "로그아웃", MessageBoxButtons.YesNo);
+
+            if (res == DialogResult.Yes)
+            {
+                new Login().Show();
+                this.Hide();
+            }
         }
 
         // 초기값 설정
         private void DevForm_Shown(object sender, EventArgs e)
         {
             InitGridControl();
-            SearchCoBox.Items.AddRange(new string[] { "Id", "Name", "Grade", "Amount" });
+            SearchCoBox.Items.AddRange(new string[] { "이름","출고횟수","상태" });
             SearchCoBox.SelectedIndex = -1;
-
-            GradeCoBox.Items.AddRange(new string[] { "1", "2", "3" });
-            GradeCoBox.SelectedIndex = -1;
-
-            AmountCoBox.Items.AddRange(new string[] { "10", "20", "30", "40" });
-            AmountCoBox.SelectedIndex = -1;
 
             ResetBtn.Enabled = false;
             SearchBtn.Enabled = false;
-            UpdateBtn.Enabled = false;
 
             RackLoadBtn.Enabled = false;
             RackUnLoadBtn.Enabled = false;
+
+            ReceivePathBtn.Enabled = false;
+            ResetPathBtn.Enabled = false;
         }
 
         // 데이터 로드 
@@ -130,13 +279,15 @@ namespace DevExpressExample
             DeleteBtn.Enabled = true;
 
             // 데이터테이블에 데이터 추가
-            dt.Columns.Add("Id", typeof(string));
-            dt.Columns.Add("Name", typeof(string));
-            dt.Columns.Add("Grade", typeof(string));
-            dt.Columns.Add("Date", typeof(DateTime));
-            dt.Columns.Add("Amount", typeof(string));
-
-            msSqlExample.SelectDataDB(dt);
+            dt.Columns.Add("이름", typeof(string));
+            dt.Columns.Add("상태", typeof(string));
+            dt.Columns.Add("이동경로", typeof(string));
+            dt.Columns.Add("출고화물", typeof(string));
+            dt.Columns.Add("운행시간", typeof(string));
+            dt.Columns.Add("출고시각", typeof(string));
+            dt.Columns.Add("출고횟수", typeof(int)); 
+           
+            msSqlExample.SelectAGVDB(dt);
 
             gridControl1.DataSource = dt;
         }      
@@ -146,7 +297,6 @@ namespace DevExpressExample
         {
             LoadBtn.Enabled = true;
             ResetBtn.Enabled = false;
-            UpdateBtn.Enabled = false;
 
             gridControl1.DataSource = null;
         }
@@ -177,21 +327,17 @@ namespace DevExpressExample
 
             // 콤보박스로 검색어 카테고리 설정
 
-            if (SearchCoBox.SelectedItem.ToString() == "Id")
+            if (SearchCoBox.SelectedItem.ToString() == "이름")
             {
-                msSqlExample.DataSearch("id", searchText, dt);
-            }   
-            if (SearchCoBox.SelectedItem.ToString() == "Name")
-            {
-                msSqlExample.DataSearch("name", searchText, dt);
-            } 
-            if (SearchCoBox.SelectedItem.ToString() == "Grade")
-            {
-                msSqlExample.DataSearch("grade", searchText, dt);
+                msSqlExample.SearchAGVDB("이름", searchText, dt);
             }
-            if (SearchCoBox.SelectedItem.ToString() == "Amount")
+            if (SearchCoBox.SelectedItem.ToString() == "출고횟수")
             {
-                msSqlExample.DataSearch("amount", searchText, dt);
+                msSqlExample.SearchAGVDB("출고횟수", searchText, dt);
+            }
+            if (SearchCoBox.SelectedItem.ToString() == "상태")
+            {
+                msSqlExample.SearchAGVDB("상태", searchText, dt);
             }
 
         }
@@ -203,98 +349,16 @@ namespace DevExpressExample
 
             if(res == DialogResult.Yes)
             {
-                // 선택된 열의 Id를 가져옴
-                string Id = gridView1.GetRowCellValue(gridView1.FocusedRowHandle, "Id").ToString();
+                // 선택된 열의 시간을 가져옴
+                DateTime time = (DateTime)gridView1.GetRowCellValue(gridView1.FocusedRowHandle, "출고시각");
+                string timetext = time.ToString("yyyy-MM-dd HH:mm:ss");
 
                 // DB에서 삭제
-                msSqlExample.DataDelete(Id);
+                msSqlExample.DeleteAGVDB(timetext);
 
                 // 그리드뷰에서 삭제
                 gridView1.DeleteRow(gridView1.FocusedRowHandle);
                 gridView1.RefreshData();
-            }
-        }
-
-        // 데이터 저장
-        private void SaveBtn_Click(object sender, EventArgs e)
-        {
-            int counter = 0;
-
-            // counter로 조건 만족하는지 확인 
-            if (IdBox.Text.Length == 0)
-                labelControl1.Text = "아이디를 입력하세요.";
-            else { labelControl1.Text = ""; counter++; }
-            if (NameBox.Text.Length == 0)
-                labelControl2.Text = "이름을 입력하세요.";
-            else { labelControl2.Text = ""; counter++; }
-            if (GradeCoBox.SelectedIndex == -1)
-                labelControl3.Text = "학년을 선택하세요.";
-            else { labelControl3.Text = ""; counter++; }
-            if (AmountCoBox.SelectedIndex == -1)
-                labelControl5.Text = "기부 금액을 선택하세요.";
-            else { labelControl5.Text = ""; counter++; }
-
-            string id = IdBox.Text;
-            string name = NameBox.Text;
-            string grade = "";
-            string date = DateTime.Now.ToString("yyyy-MM-dd");
-            string amount = "";
-
-            if (GradeCoBox.SelectedIndex >= 0)
-                grade = GradeCoBox.Items[GradeCoBox.SelectedIndex].ToString();
-
-            if (AmountCoBox.SelectedIndex >= 0)
-                amount = AmountCoBox.Items[AmountCoBox.SelectedIndex].ToString();
-
-
-            // 모든 조건 만족시 데이터 저장
-            if (counter == 4)
-            {
-                msSqlExample.DataInsertDB(id, name, grade, date, amount);
-
-                MessageBox.Show("데이터 저장 완료!", "완료",MessageBoxButtons.OK);
-            }
-        }
-
-        // 데이터 저장 폼 초기화
-        private void ClearBtn_Click(object sender, EventArgs e)
-        {
-            IdBox.Text = "";
-            NameBox.Text = "";
-            GradeCoBox.SelectedIndex = -1;
-            AmountCoBox.SelectedIndex = -1;
-
-            labelControl1.Text = "";
-            labelControl2.Text = "";
-            labelControl3.Text = "";
-            labelControl5.Text = "";
-        }
-
-        // 데이터 수정
-        private void UpdateBtn_Click(object sender, EventArgs e)
-        {
-            DialogResult res = MessageBox.Show("데이터를 수정하시겠습니까?", "수정", MessageBoxButtons.YesNo);
-
-            if (res == DialogResult.Yes)
-            {
-                // 수정 후 버튼 비활성화 > 수정된 데이터가 있을시에만 활성화됨
-                UpdateBtn.Enabled = false;
-
-                // 기존 테이블 삭제 후 수정된 테이블로 덮어쓰기
-                msSqlExample.DataUpdate(gridView1);
-                MessageBox.Show("수정 완료!", "성공", MessageBoxButtons.OK);
-            }
-        }
-
-        // 로그아웃
-        private void LogoutBtn_Click(object sender, EventArgs e)
-        {
-            DialogResult res = MessageBox.Show("로그아웃 하시겠습니까?", "로그아웃", MessageBoxButtons.YesNo);
-
-            if (res == DialogResult.Yes)
-            {
-                new Login().Show();
-                this.Hide();
             }
         }
 
@@ -332,18 +396,17 @@ namespace DevExpressExample
             {
                 g.DrawLine(linePen, new Point(50 + 180 * i, 50), new Point(50 + 180 * i, 365));
 
-                // 선반 이동 경로 생성  (초록색 점)
+                // 랙 이동 경로 생성  (초록색 점)
                 for (int j = 1; j < 8; j++)
                 {
                     g.FillEllipse(Brushes.Green, 45 + 180 * i, 45 * j, 10, 10);
                 }
-
             }
             g.DrawLine(linePen, WidthLinePoint, WidthLinePoint2);
             g.DrawLine(linePen, WidthLinePoint3, WidthLinePoint4);
 
             // 선에 노드 표시 
-            for (int i = 0; i < 20; i++)
+            for (int i = 1; i < 20; i++)
             {
                 // 가로 깔기
                 g.FillEllipse(Brushes.Black, (HeightLinePoint.X - 5) * (i + 1), HeightLinePoint.Y - 5, 10, 10);
@@ -358,15 +421,6 @@ namespace DevExpressExample
 
             }
 
-            List<Label> labels = new List<Label>();
-
-            for (int i = 0; i<24; i++)
-            {
-                racklabel = new Label();
-                labels.Add(racklabel);
-            }
-
-            
             // 랙 깔기
             for (int j = 0; j < 4; j++)
             {
@@ -375,6 +429,16 @@ namespace DevExpressExample
                     // 랙 깔기
                     g.DrawRectangle(Pens.Brown, rack.X +(180 *j), rack.Y + (45 * i), 30, 45);
                 }
+            }           
+        }
+
+        // AGV 클릭시 agv 팝업창 뜸.
+        private void PictureEdit1_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (rec.Contains(e.Location))
+            {
+                agv.Owner = this;
+                agv.Show();
             }
         }
 
@@ -382,18 +446,16 @@ namespace DevExpressExample
         private void RackTimer_Tick(object sender, EventArgs e)
         {
 
+            state = "이동 중";
+
             // 움직일때는 이동 및 load,unload 불가
             RackLoadBtn.Enabled = false;
             RackUnLoadBtn.Enabled = false;
-            ResetPathBtn.Enabled = false;
+            ReceivePathBtn.Enabled = false;
             ReleasePathBtn.Enabled = false;
 
-
-            // 6으로 나눈 몫을 올림
-            double ceilingvalue = Math.Ceiling((double)rackNum / 6);
-
-            // 선반 위치 포인트
-            rackPoint = new Point((int)(25 + 45 * (ceilingvalue * 4)), (int)((25 + 45 * (rackNum - (6 * (ceilingvalue-1))))));
+            // 랙 위치 포인트
+            rackPoint = rackPointList[rackNum-1];
 
             // 출고점으로 이동
             if (isRelease == true)
@@ -402,7 +464,7 @@ namespace DevExpressExample
             }
 
             // 입고점(시작위치)으로 이동
-            if(isReset == true)
+            if(isReceive == true)
             {
                 rackPoint = new Point(25, 25);
             }
@@ -410,47 +472,47 @@ namespace DevExpressExample
             // 해당 위치가 랙 위치 포인트보다 클때는 역방향(-) 아니면 정방향 (+)
             if (rec.X > rackPoint.X)
             {
-                x_speed = -15;
+                x_speed = -5;
             } 
             else 
             {
-                x_speed = 15; 
+                x_speed = 5;
             }
             if(rec.Y > rackPoint.Y && rec.X  == rackPoint.X)
             {
-                y_speed = -15;
+                y_speed = -5;
             }
             else
             {
-                y_speed = 15;
+                y_speed = 5;
             }
 
-            // 현재위치에서 진행거리 만큼 왔을때 타이머 stop
+            /// x축 이동
+            // 목적지의 x좌표 만큼 왔을때 타이머 stop
             if (rec.X == rackPoint.X)
             {
                 cur_position_x = rec.X;
                 x_moving = false;
-                if (y_moving == false)
-                {
-                    racktimer.Stop();
-                }
             }
+
+            // 범위를 벗어나지 않았고, 도착하지 않았고, x_moving이 true이면 x축으로 움직이기.
             else if (outRange == false && x_moving)
             {
                 rec.X += x_speed;
             }
 
+            /// y축 이동
             // x좌표로 움직인 다음 y좌표로 이동 
             if (x_moving == false)
             {
-                // 현재위치에서 진행거리 만큼 왔을때 타이머 stop
+                // 목적지의 y좌표 만큼 왔을때 타이머 stop
                 if (rec.Y == rackPoint.Y)
                 {
                     cur_position_y = rec.Y;
-                    y_moving = false;
-                    racktimer.Stop();
+                    timer1.Stop();
                 }
-                else if (outRange == false && y_moving)
+                // 범위를 벗어나지 않았고 도착하지 않았다면 y축으로 움직이기.
+                else if (outRange == false)
                 {
                     rec.Y += y_speed;
                 }
@@ -469,68 +531,90 @@ namespace DevExpressExample
 
             if (outRange == true)
             {
-                // 랙 1~3 번까지는 위로 이동
-                if (rec.Y < 195)
-                {
-                    rec.Y -= y_speed;
-                }
-                // 랙 4~6번까지는 밑으로 이동 
-                else if (rec.Y >= 195)
+                // 위와 아래 경로 중  y 거리가 짧은 경로로 이동
+                if (rec.Y-25 + rackPoint.Y-25  > 340-rec.Y + 340 - rackPoint.Y)
                 {
                     rec.Y += y_speed;
                 }
+                else
+                {
+                    rec.Y -= y_speed;
+                }
             }
 
+            // 해당 라인을 벗어나면 다시 x축으로 이동할 수있도록 함.
             if (rec.Y == 340 || rec.Y == 25)
             {
                 outRange = false;
             }
 
             // 타이머가 멈췄을때 = 목적지 도착 버튼 활성화 및 boolean값 초기화
-            if (racktimer.Enabled == false){
+            if (timer1.Enabled == false){
                 // 현재 시간
                 string now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 startBtn.Enabled = true;
                 RackLoadBtn.Enabled = true;
                 RackUnLoadBtn.Enabled = true;
-                ResetPathBtn.Enabled = true;
+                ReceivePathBtn.Enabled = true;
                 ReleasePathBtn.Enabled = true;
+                ResetPathBtn.Enabled = true;
 
-                // 랙으로 이동 했을때
-                if (isRelease == false && isReset ==  false)
+                agv.moveBtn.Enabled = false;
+                agv.pauseBtn.Enabled = false;
+
+
+                // 랙에 도착
+                if (isRelease == false && isReceive ==  false)
                 {
                     LogListBox.Items.Add(now + $"     목적지 도착");
                     RackLoadBtn.Enabled = true;
                     RackUnLoadBtn.Enabled = true;
+                    state = $"{rackNum}번랙 정차";
+                    movingPath += $"{rackNum} > ";
+                    agv.timer1.Enabled = false;
+                    timer2.Stop();
                 }
+
                 // 출고점
                 else if (isRelease == true)
                 {
-                    LogListBox.Items.Add(now + "     출고점 도착");
+                    LogListBox.Items.Add(now + "     출고지 도착");
                     ReleasePathBtn.Enabled = false;
                     RackLoadBtn.Enabled = false;
-
+                    state = "출고지 정차";
+                    movingPath += "출고지 ";
+                    agv.timer1.Enabled = false;
+                    timer2.Stop();
                 }
+
                 // 입고점
-                else if (isReset == true)
+                else if (isReceive == true)
                 {
-                    LogListBox.Items.Add(now + "     입고점 도착");
-                    ResetPathBtn.Enabled = false;
+                    LogListBox.Items.Add(now + "     입고지 도착");
+                    ReceivePathBtn.Enabled = false;
                     RackLoadBtn.Enabled = false;
                     RackUnLoadBtn.Enabled = false;
+                    state = "입고지 정차";
+                    movingPath += "입고지 ";
+                    agv.timer1.Enabled = false;
+                    timer2.Stop();
                 }
-                
+
                 x_moving = true;
-                y_moving = true;
+
+                // 다른 랙으로 이동시 load가 안되는 것을 초기화하여 해결.
                 isLoad = false;
+
+                // 팝업창에 이동경로 추가
+                agv.movingPathBox.Text = movingPath;
 
                 // 로그가 생기면 스크롤바를 아래로 내림.
                 LogListBox.MakeItemVisible(LogListBox.ItemCount);
             }
-
+            agv.stateLabel.Text = state;
             pictureEdit1.Invalidate();
 
-            xyPositionLabel.Text = string.Format("X : {0}   Y : {1}", rec.X, rec.Y);
+            agv.agvPosLabel.Text = string.Format("X : {0}   Y : {1}", rec.X, rec.Y);
         }
 
         // 랙 경로 지정
@@ -543,9 +627,12 @@ namespace DevExpressExample
             RackLoadBtn.Enabled = false;
             RackUnLoadBtn.Enabled = false;
 
+            // 움직이기 시작하면 중지버튼 활성화
+            agv.pauseBtn.Enabled = true;
+
             // 초기화
             isRelease = false;
-            isReset = false;
+            isReceive = false;
 
             // null값 허용 x 
             if (rackNumTxt.Text.Length != 0)
@@ -554,21 +641,36 @@ namespace DevExpressExample
 
                 if (rackNum <= 0 || rackNum > 24)
                 {
-                    MessageBox.Show("선반 번호가 아닙니다.", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("랙 번호가 아닙니다.", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
             }
             else
             {
-                MessageBox.Show("선반 번호를 지정해주세요.", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("랙 번호를 지정해주세요.", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
-            LogListBox.Items.Add(now+ $"     {rackNum}번 선반으로 이동");
+            // 현재 위치한 랙 번호와 같은 번호로는 경로지정 불가 
+            beforenum.Add(rackNum);
+
+            if (beforenum[0] == beforenum[1])
+            {
+                MessageBox.Show("이미 해당 랙에 위치해 있습니다.", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                beforenum.RemoveAt(beforenum.Count-1);
+                return;
+            }
+            else
+            {
+                beforenum.RemoveAt(0);
+            }
+
+            LogListBox.Items.Add(now+ $"     {rackNum}번 랙으로 이동");
             startBtn.Enabled = false;
             outRange = false;
 
-            racktimer.Start();
+            timer1.Start();
+            timer2.Start();
         }
 
         // 적재 버튼
@@ -577,21 +679,20 @@ namespace DevExpressExample
             // 현재 시간
             string now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
-            
             // 해당 번호의 화물을 적재하지 않았다면 적재 가능.
             if (isLoad == false && !rackList.Contains(rackNum))
             {
                 isLoad = true;
-                RackNumBox.Text += rackNum;
+                loadfreightText += rackNum + " ";
                 rackList.Add(rackNum);
                 LogListBox.Items.Add(now + $"     {rackNum}번 화물 적재 완료!");
+                agv.freightListBox.Text = loadfreightText;
             }
             else
             {
-                MessageBox.Show($"이미 {rackNum}번 화물을 적재했습니다.", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"이미 {rackNum}번 화물을 Load했습니다.", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }  
-
 
             // 새로운 로그가 있을때 자동으로 스크롤바 내림.
             LogListBox.MakeItemVisible(LogListBox.ItemCount);
@@ -600,9 +701,13 @@ namespace DevExpressExample
         // 화물 unload
         private void RackUnloadBtn_Click(object sender, EventArgs e)
         { 
-
             // 현재 시간
             string now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+            // AGV 이름과 경로 그리고 운행시간
+            string name = agv.agvNameBox.Text;
+            string path = agv.movingPathBox.Text;
+            string worktime = agv.moveTimeLabel.Text;
 
             // 출고지에 있다면 unload 가능
             if (isRelease == true || rackList.Contains(rackNum))
@@ -610,38 +715,63 @@ namespace DevExpressExample
                 // 화물이 있다면 unload ,없다면 unload x
                 if (rackList.Count != 0)
                 {
-                    string a = "";
+                    string racknums = "";
 
                     // 출고지에서는 하역시 모든 화물 unload
                     if (isRelease == true)
                     {
+                        releaseCount++;
                         foreach (int num in rackList)
                         {
-                            a += num.ToString() + "번 ";
+                            racknums += num.ToString() + "번 ";
+                            releaseFreightList.Add(num.ToString());
                         }
-                        LogListBox.Items.Add(now + $"     {a}랙의 화물을 Unload 하였습니다.");
+                        LogListBox.Items.Add(now + $"     {racknums}랙의 화물을 Unload 하였습니다.");
+                        
+                        string unloads = racknums;
+                        string unloadtime = now;
+                        int unloadnum = releaseCount;
+
+                        state = "출고 완료";
+
                         rackList.Clear();
-                        RackNumBox.Text = "";
+                        loadfreightText = "";
+
+                        // 팝업창에 데이터 추가
+                        agv.releaseNumLabel.Text = releaseCount.ToString();
+                        agv.freightListBox.Text = "";
+                        agv.releaseFreightBox.Items.AddRange(releaseFreightList.ToArray());
+
+                        releaseFreightList.Clear();
+
+                        // AGV DB에 데이터 추가
+                        msSqlExample.InsertAGVDB(name, path,unloads, worktime, unloadtime,unloadnum,state);
+
+
                     }
                     // 랙에서는 해당 번호의 화물만 unload
                     else if (isRelease == false)
                     {
-                        a += rackNum.ToString() + "번 ";
-                        LogListBox.Items.Add(now + $"     {a}랙의 화물을 Unload 하였습니다.");
+                        racknums += rackNum.ToString() + "번 ";
+                        LogListBox.Items.Add(now + $"     {racknums}랙의 화물을 Unload 하였습니다.");
                         int idx = rackList.FindIndex(x => x == rackNum);
                         rackList.RemoveAt(idx);
                         isLoad = false;
                         string nums = "";
                         foreach (int num in rackList)
                         {
-                            nums += num;
+                            nums += num + " ";
                         }
-                        RackNumBox.Text = nums;
+                        loadfreightText = nums;
+                        agv.freightListBox.Text = loadfreightText;
                     }
                 }
                 else
                 {
                     MessageBox.Show("Unload할 화물이 없습니다.", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    state = "에러";
+                    msSqlExample.InsertAGVDB(name,path,"",worktime,now,releaseCount,state);
+
                     return;
                 }
             }
@@ -651,25 +781,26 @@ namespace DevExpressExample
                 return;
             }
 
+            agv.stateLabel.Text = state;
             // 새로운 로그가 있을때 자동으로 스크롤바 내림.
             LogListBox.MakeItemVisible(LogListBox.ItemCount);
         }
 
         // 입고위치로 이동(초기 위치)
-        private void ResetPathBtn_Click(object sender, EventArgs e)
+        private void ReceivePathBtn_Click(object sender, EventArgs e)
         {
             // 현재 시간
             string now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
             LogListBox.Items.Add(now+"     초기 위치로 돌아갑니다.");
-            isReset = true;
+            isReceive = true;
             isRelease = false;
             rackNumTxt.Text = "";
-            rackList.Clear();
             RackLoadBtn.Enabled = false;
             RackUnLoadBtn.Enabled = false;
 
-            racktimer.Start();
+            timer1.Start();
+            timer2.Start();
         }
 
         // 출고위치로 이동
@@ -679,12 +810,11 @@ namespace DevExpressExample
             string now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
             LogListBox.Items.Add(now+"     출고점으로 이동합니다.");
-            isReset = false;
+            isReceive = false;
             isRelease = true;
-            racktimer.Start();
-
+            timer1.Start();
+            timer2.Start();
         }
-
 
         // 숫자만 받도록
         private void RackNumTxt_KeyPress(object sender, KeyPressEventArgs e)
@@ -723,9 +853,80 @@ namespace DevExpressExample
                     racklabel.Text = count.ToString();
                     racklabel.Name = "Label" + racklabel.Text;
                     pictureEdit1.Controls.Add(racklabel);
-
                 }
             }
         }
+
+        // 초기 위치로 초기화
+        private void ResetPathBtn_Click(object sender, EventArgs e)
+        {
+
+            agv.Hide();
+            time = 0;
+            agv.moveTimeLabel.Text = time + ":" + time;
+            rec.X = 25;
+            rec.Y = 25;
+
+            timer2.Stop();
+
+            string now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+            LogListBox.Items.Add(now + "     초기화");
+
+            // 새로운 로그가 있을때 자동으로 스크롤바 내림.
+            LogListBox.MakeItemVisible(LogListBox.ItemCount);
+
+            rackNumTxt.Text = "";
+            isReceive = false;
+            isRelease = false;
+
+            // 버튼 비활성화
+            ResetPathBtn.Enabled = false;
+            ReceivePathBtn.Enabled = false;
+            ReleasePathBtn.Enabled = true;
+            RackLoadBtn.Enabled = false;
+            RackUnLoadBtn.Enabled = false;
+
+            // 보유 화물 클리어
+            rackList.Clear();
+            loadfreightText = "";
+
+            //로그 텍스트 클리어
+            LogListBox.Items.Clear();
+
+            // 이동경로 클리어
+            movingPath = "";
+
+            agv.stateLabel.Text = "입고지 정차";
+            agv.agvPosLabel.Text = string.Format("X : {0} Y : {1}", rec.X, rec.Y);
+            agv.agvSpeedLabel.Text = "10";
+            agv.movingPathBox.Text = "";
+            agv.freightListBox.Clear();
+            agv.releaseNumLabel.Text = "0";
+            agv.releaseFreightBox.Items.Clear();
+
+            timer1.Interval = 201;
+
+        }
+
+        // Form Closing Event
+        private void this_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            e.Cancel = false;
+        }
+
+        // 폼이 닫힌 후에 모든 프로그램 종료
+        private void this_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            Application.Exit();
+        }
+
+        private void Agv_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            e.Cancel = true;
+            agv.Hide();
+        }
+
     }
+
 }

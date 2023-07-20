@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
 using System.Data.SqlClient;
 using System.Data;
 
@@ -15,10 +14,10 @@ namespace DevExpressExample
     {
 
         // User Data Read
-        public void SelectDB()
+        public void SelectDB(string Database, string Table)
         {
-            string connectionString = string.Format("Server={0};Database={1};Uid={2}; Pwd={3};", "NOVA", "UserDB", "nova", "1954");
-            string sql = "select * from UserInfo";
+            string connectionString = string.Format("Server={0};Database={1};Uid={2}; Pwd={3};", "NOVA", $"{Database}", "nova", "1954");
+            string sql = $"select * from {Table}";
 
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
@@ -46,10 +45,10 @@ namespace DevExpressExample
 
 
         // Data Read
-        public void SelectDataDB(DataTable dt)
+        public void SelectAGVDB(DataTable dt)
         {
-            string connectionString = string.Format("Server={0};Database={1};Uid={2}; Pwd={3};", "NOVA", "DataDB", "nova", "1954");
-            string sql = "select * from DataInfo";
+            string connectionString = string.Format("Server={0};Database={1};Uid={2}; Pwd={3};", "NOVA", "AGVDB", "nova", "1954");
+            string sql = "select * from AGVData";
 
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
@@ -59,17 +58,17 @@ namespace DevExpressExample
 
                 while (wdr.Read())
                 {
-                    dt.Rows.Add(wdr["id"], wdr["name"], wdr["grade"], wdr["date"], wdr["amount"]);
+                    dt.Rows.Add(wdr["이름"], wdr["상태"], wdr["이동경로"], wdr["출고화물"], wdr["운행시간"],wdr["출고시각"], wdr["출고횟수"]);
                 }
                 wdr.Close();
             }
         }
 
         //Data Insert 
-        public void DataInsertDB(string id, string name, string grade, string date, string amount)
+        public void InsertAGVDB(string name, string path, string unloads, string worktime,string unloadtime,int unloadnum, string state)
         {
-            string connectionString = string.Format("Server={0};Database={1};Uid={2}; Pwd={3};", "NOVA", "DataDB", "nova", "1954");
-            string sql = $"Insert Into DataInfo (id,name,grade,date,amount) values ('{id}','{name}','{grade}','{date}','{amount}')";
+            string connectionString = string.Format("Server={0};Database={1};Uid={2}; Pwd={3};", "NOVA", "AGVDB", "nova", "1954");
+            string sql = $"Insert Into AGVData (이름,이동경로,출고화물,운행시간,출고시각,출고횟수,상태) values ('{name}','{path}','{unloads}','{worktime}','{unloadtime}',{unloadnum},'{state}')";
 
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
@@ -80,11 +79,11 @@ namespace DevExpressExample
         }
 
         //Data Search
-        public void DataSearch(string column,string searchText ,DataTable dt)
+        public void SearchAGVDB(string column,string searchText ,DataTable dt)
         {
             // 콤보박스에서 선택한 카테고리로 searchtext를 포함하는 열들 그리드뷰에 출력 
-            string connectionString = string.Format("Server={0};Database={1};Uid={2}; Pwd={3};", "NOVA", "DataDB", "nova", "1954");
-            string sql = $"SELECT * FROM DataInfo WHERE {column} LIKE '%{searchText}%'";
+            string connectionString = string.Format("Server={0};Database={1};Uid={2}; Pwd={3};", "NOVA", "AGVDB", "nova", "1954");
+            string sql = $"SELECT * FROM AGVData WHERE {column} LIKE '%{searchText}%'";
 
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
@@ -96,18 +95,18 @@ namespace DevExpressExample
 
                 while (wdr.Read())
                 {
-                    dt.Rows.Add(wdr["id"], wdr["name"], wdr["grade"], wdr["date"], wdr["amount"]);
+                    dt.Rows.Add(wdr["이름"], wdr["상태"], wdr["이동경로"],wdr["출고화물"], wdr["운행시간"] ,wdr["출고시각"],wdr["출고횟수"]);
                 }
                 wdr.Close();
             }
         }
 
         //Data Delete
-        public void DataDelete(string selectedId)
+        public void DeleteAGVDB(string selectTime)
         {
             // 선택된 행 삭제 
-            string connectionString = string.Format("Server={0};Database={1};Uid={2}; Pwd={3};", "NOVA", "DataDB", "nova", "1954");
-            string sql = $"DELETE FROM DataInfo WHERE id='{selectedId}'";
+            string connectionString = string.Format("Server={0};Database={1};Uid={2}; Pwd={3};", "NOVA", "AGVDB", "nova", "1954");
+            string sql = $"DELETE FROM AGVData WHERE 출고시각='{selectTime}'";
 
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
@@ -115,34 +114,6 @@ namespace DevExpressExample
                 // String으로 된 sql문을 데이터베이스에 Sql문 형식으로 변환해서 전달. 
                 SqlCommand cmd = new SqlCommand(sql, conn);
                 cmd.ExecuteNonQuery();
-            }
-        }
-
-        //Data Update > gridcontrol의 변경된 데이터를 새로운 데이터 테이블에 덮어쓰기
-        public void DataUpdate(GridView gridView)
-        {
-            string connectionString = string.Format("Server={0};Database={1};Uid={2}; Pwd={3};", "NOVA", "DataDB", "nova", "1954");
-
-            // DB에서 테이블 형식은 유지하고 데이터만 삭제 
-            string sql_delete = "TRUNCATE TABLE DataInfo";
-
-            using (SqlConnection conn = new SqlConnection(connectionString))
-            {
-                conn.Open();
-                SqlCommand cmd = new SqlCommand(sql_delete, conn);
-                cmd.ExecuteNonQuery();
-            }
-
-            // 그리드뷰에서 수정된 데이터를 테이블에 INSERT 
-            for (int i = 0; i < gridView.RowCount; i++)
-            {
-                string id = gridView.GetRowCellValue(gridView.GetRowHandle(i), "Id").ToString();
-                string name = gridView.GetRowCellValue(gridView.GetRowHandle(i), "Name").ToString();
-                string grade = gridView.GetRowCellValue(gridView.GetRowHandle(i), "Grade").ToString();
-                string date = ((DateTime)gridView.GetRowCellValue(gridView.GetRowHandle(i), "Date")).ToString("yyyy-MM-dd");
-                string amount = gridView.GetRowCellValue(gridView.GetRowHandle(i), "Amount").ToString();
-
-                DataInsertDB(id, name, grade, date, amount);
             }
         }
     }

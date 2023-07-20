@@ -113,7 +113,7 @@ namespace DevExpressExample
             this.FindPassword.Size = new System.Drawing.Size(158, 24);
             this.FindPassword.TabIndex = 6;
             this.FindPassword.Text = "아이디/비밀번호 찾기";
-            this.FindPassword.Click += new System.EventHandler(this.FindPassword_Click);
+            this.FindPassword.Click += new System.EventHandler(this.FindId_Click);
             // 
             // WrongTxt
             // 

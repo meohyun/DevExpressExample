@@ -58,7 +58,7 @@ namespace DevExpressExample
                     if (login_Id == (string)mdr["id"] && login_Password == (string)mdr["password"])
                     {
                         login = true;
-                        new DataForm().Show();
+                        Prograｍ.MainForm.Show();
                         this.Hide();
                     }
                 }
@@ -83,13 +83,13 @@ namespace DevExpressExample
         // 회원가입
         private void UserCreate_Click(object sender, EventArgs e)
         {
-            new UserCreate().Show();
+            new UserCreate().ShowDialog();
         }
 
         // 아이디/비밀번호 찾기
-        private void FindPassword_Click(object sender, EventArgs e)
+        private void FindId_Click(object sender, EventArgs e)
         {
-            new FindId().Show();
+            new FindId().ShowDialog();
         }
 
     }

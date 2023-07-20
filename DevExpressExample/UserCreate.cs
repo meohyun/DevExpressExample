@@ -29,7 +29,7 @@ namespace DevExpressExample
         }
 
         // 회원 가입 버튼
-        private void createBtn_Click(object sender, EventArgs e)
+        private void UserCreateBtn_Click(object sender, EventArgs e)
         {
             string name = nameBox.Text;
             string email = emailBox.Text;
@@ -147,7 +147,7 @@ namespace DevExpressExample
             }
         }
         // 초기화 버튼
-        private void clearBtn_Click(object sender, EventArgs e)
+        private void ClearBtn_Click(object sender, EventArgs e)
         {
             nameBox.Text = "";
             emailBox.Text = "";
@@ -158,7 +158,7 @@ namespace DevExpressExample
 
         // 비밀번호 입력시 숨김 기능 
 
-        private void passwordBox_TextChanged(object sender, EventArgs e)
+        private void PasswordTxt_TextChanged(object sender, EventArgs e)
         {
             clearBtn.Enabled = true;
             if (passwordBox.PasswordChar == (char)0)
@@ -166,7 +166,7 @@ namespace DevExpressExample
                 passwordBox.PasswordChar = '*';
             }
         }
-        private void repasswordBox_TextChanged(object sender, EventArgs e)
+        private void RePasswordTxt_TextChanged(object sender, EventArgs e)
         {
             clearBtn.Enabled = true;
             if (repasswordBox.PasswordChar == (char)0)
@@ -178,17 +178,17 @@ namespace DevExpressExample
 
         // 텍스트가 들어있을때만 클리어 버튼 활성화
 
-        private void nameBox_TextChanged(object sender, EventArgs e)
+        private void NameBox_TextChanged(object sender, EventArgs e)
         {
             clearBtn.Enabled = true;
         }
 
-        private void emailBox_TextChanged(object sender, EventArgs e)
+        private void EmailBox_TextChanged(object sender, EventArgs e)
         {
             clearBtn.Enabled = true;
         }
 
-        private void idBox_TextChanged(object sender, EventArgs e)
+        private void IdBox_TextChanged(object sender, EventArgs e)
         {
             clearBtn.Enabled = true;
         }

@@ -56,7 +56,7 @@ namespace DevExpressExample
             this.nameBox.Name = "nameBox";
             this.nameBox.Size = new System.Drawing.Size(508, 35);
             this.nameBox.TabIndex = 0;
-            this.nameBox.TextChanged += new System.EventHandler(this.nameBox_TextChanged);
+            this.nameBox.TextChanged += new System.EventHandler(this.NameBox_TextChanged);
             // 
             // emailBox
             // 
@@ -65,7 +65,7 @@ namespace DevExpressExample
             this.emailBox.Name = "emailBox";
             this.emailBox.Size = new System.Drawing.Size(508, 35);
             this.emailBox.TabIndex = 1;
-            this.emailBox.TextChanged += new System.EventHandler(this.emailBox_TextChanged);
+            this.emailBox.TextChanged += new System.EventHandler(this.EmailBox_TextChanged);
             // 
             // idBox
             // 
@@ -74,7 +74,7 @@ namespace DevExpressExample
             this.idBox.Name = "idBox";
             this.idBox.Size = new System.Drawing.Size(508, 35);
             this.idBox.TabIndex = 2;
-            this.idBox.TextChanged += new System.EventHandler(this.idBox_TextChanged);
+            this.idBox.TextChanged += new System.EventHandler(this.IdBox_TextChanged);
             // 
             // passwordBox
             // 
@@ -83,7 +83,7 @@ namespace DevExpressExample
             this.passwordBox.Name = "passwordBox";
             this.passwordBox.Size = new System.Drawing.Size(508, 35);
             this.passwordBox.TabIndex = 3;
-            this.passwordBox.TextChanged += new System.EventHandler(this.passwordBox_TextChanged);
+            this.passwordBox.TextChanged += new System.EventHandler(this.PasswordTxt_TextChanged);
             // 
             // repasswordBox
             // 
@@ -92,7 +92,7 @@ namespace DevExpressExample
             this.repasswordBox.Name = "repasswordBox";
             this.repasswordBox.Size = new System.Drawing.Size(508, 35);
             this.repasswordBox.TabIndex = 4;
-            this.repasswordBox.TextChanged += new System.EventHandler(this.repasswordBox_TextChanged);
+            this.repasswordBox.TextChanged += new System.EventHandler(this.RePasswordTxt_TextChanged);
             // 
             // labelControl1
             // 
@@ -163,7 +163,7 @@ namespace DevExpressExample
             this.createBtn.Size = new System.Drawing.Size(194, 54);
             this.createBtn.TabIndex = 11;
             this.createBtn.Text = "가입하기";
-            this.createBtn.Click += new System.EventHandler(this.createBtn_Click);
+            this.createBtn.Click += new System.EventHandler(this.UserCreateBtn_Click);
             // 
             // clearBtn
             // 
@@ -174,7 +174,7 @@ namespace DevExpressExample
             this.clearBtn.Size = new System.Drawing.Size(194, 54);
             this.clearBtn.TabIndex = 12;
             this.clearBtn.Text = "정보 초기화";
-            this.clearBtn.Click += new System.EventHandler(this.clearBtn_Click);
+            this.clearBtn.Click += new System.EventHandler(this.ClearBtn_Click);
             // 
             // NameLabel
             // 
