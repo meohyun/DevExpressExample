@@ -106,7 +106,11 @@ namespace DevExpressExample
         {
             // 선택된 행 삭제 
             string connectionString = string.Format("Server={0};Database={1};Uid={2}; Pwd={3};", "NOVA", "AGVDB", "nova", "1954");
-            string sql = $"DELETE FROM AGVData WHERE 출고시각='{selectTime}'";
+            DateTime d = Convert.ToDateTime(selectTime);
+            string time = d.ToString("yyyy-MM-dd HH:mm:ss");
+
+            string sql = $"DELETE FROM AGVData WHERE 출고시각='{time}'";
+           
 
             using (SqlConnection conn = new SqlConnection(connectionString))
             {

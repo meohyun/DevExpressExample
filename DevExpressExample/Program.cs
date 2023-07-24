@@ -21,7 +21,7 @@ namespace DevExpressExample
             Application.SetCompatibleTextRenderingDefault(false);
 
             MainForm = new AGVForm();
-            Application.Run(MainForm);
+            Application.Run(new Login());
         }
     }
 }

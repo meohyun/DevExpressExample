@@ -1,4 +1,4 @@
-﻿using DevExpress.XtraEditors;
+﻿/*using DevExpress.XtraEditors;
 using DevExpress.XtraGrid.Views.Grid;
 using System;
 using System.Collections.Generic;
@@ -13,8 +13,7 @@ using System.IO;
 using System.Data.SqlClient;
 using DevExpress.XtraGrid.Views.Base;
 
-/// 원래의 AGVForm
-
+/// 수정중인 AGV FORM
 namespace DevExpressExample
 {
     public partial class AGVForm : DevExpress.XtraEditors.XtraForm
@@ -26,8 +25,12 @@ namespace DevExpressExample
         Rectangle rack;
 
         // 이동 속도
-        int x_speed = 0;
-        int y_speed = 0;
+        int x_speed = 15;
+        int y_speed = 15;
+
+        // 현재 위치
+        int cur_position_x = 25;
+        int cur_position_y = 25;
 
         // 범위를 벗어났는가?
         bool outRange = false;
@@ -80,20 +83,45 @@ namespace DevExpressExample
         // agvdata 폼 객체 생
         AGVInfo agv = new AGVInfo();
 
+        // 랙 포인트 리스트
+        List<Point> rackPointList = new List<Point>();
+
+        // 모든 경로 리스트 
+        List<Point> backgroundPointList = new List<Point>();
+
+        int des = 0;
+
+        int numcount = 1;
+        List<Link> countLinkList = new List<Link>();
+
+
+        public class Link
+        {
+            // 하나의 노드
+            public Point node1 = new Point(0, 0);
+            // 이어진 노드
+            public Point node2 = new Point(0, 0);
+
+            public int x_speed = 0;
+            public int y_speed = 0;
+
+            // 삼방향 노드인가
+            public bool isThreeNode = false;
+
+            public bool isLeftWay = false;
+            public bool isRightWay = false;
+            public bool isUnderWay = false;
+        }
+
+        // 링크 리스트 
+        List<Link> racklinklist = new List<Link>();
+        List<Link> backgroundlinklist = new List<Link>();
+
         // 시간
         int time = 0;
 
         // 이전의 랙 넘버를 저장하는 리스트
-        List<int> beforenum = new List<int> { 0 };
-
-        // 24개의 랙의 포인트를 담은 리스트
-        List<Point> rackPointList = new List<Point>();
-
-        int des = 0;
-
-        int cur_position_x = 25;
-        int cur_position_y = 25;
-
+        private readonly List<int> beforenum = new List<int> { 0 };
 
         public AGVForm()
         {
@@ -137,7 +165,65 @@ namespace DevExpressExample
                     rackPointList.Add(new Point(25 + 45 * (i * 4), 25 + (45 * j)));
                 }
             }
+
+            // 바깥쪽 경로 Point 깔기
+            for (int i = 0; i < 20; i++)
+            {
+                backgroundPointList.Add(new Point(25 + 45 * i, 25));
+            }
+
+            for (int i = 0; i < 7; i++)
+            {
+                backgroundPointList.Add(new Point(925, 25 + 45 * i));
+            }
+
+            for (int i = 0; i < 20; i++)
+            {
+                backgroundPointList.Add(new Point(925 - 45 * i, 340));
+            }
+
+            for (int i = 0; i < 7; i++)
+            {
+                backgroundPointList.Add(new Point(25, 340 - 45 * i));
+            }
+
+            CreateLink(rackPointList, racklinklist);
+            CreateLink(backgroundPointList, backgroundlinklist);
+
+            for (int i = 0; i < racklinklist.Count; i++)
+            {
+                if (i != 0 && i % 6 == 0)
+                {
+                    racklinklist.RemoveAt(i);
+                }
+            }
+
+            for (int i = 0; i < racklinklist.Count; i++)
+            {
+                LogListBox.Items.Add(racklinklist[i].node1 + "," + racklinklist[i].node2);
+            }
+
         }
+
+        // 링크 생성
+        public void CreateLink(List<Point> nodelist, List<Link> linkList)
+        {
+            for (int i = 0; i < nodelist.Count; i++)
+            {
+                Link newlink = new Link();
+
+                newlink.node1 = nodelist[i];
+
+                if (i == nodelist.Count - 1)
+                    newlink.node2 = nodelist[0];
+                else
+                    newlink.node2 = nodelist[i + 1];
+
+
+                linkList.Add(newlink);
+            }
+        }
+
 
         // AGV 운행시간
         private void Timer_Tick(object sender, EventArgs e)
@@ -247,6 +333,7 @@ namespace DevExpressExample
             {
                 msSqlExample.SearchAGVDB("상태", searchText, dt);
             }
+
         }
 
         // 데이터 삭제 
@@ -257,11 +344,11 @@ namespace DevExpressExample
             if (res == DialogResult.Yes)
             {
                 // 선택된 열의 시간을 가져옴
-                string time = (string)gridView1.GetRowCellValue(gridView1.FocusedRowHandle, "출고시각");
-                //string timetext = time.ToString("yyyy-MM-dd 오후 HH:mm:ss");
+                DateTime time = (DateTime)gridView1.GetRowCellValue(gridView1.FocusedRowHandle, "출고시각");
+                string timetext = time.ToString("yyyy-MM-dd HH:mm:ss");
 
                 // DB에서 삭제
-                msSqlExample.DeleteAGVDB(time);
+                msSqlExample.DeleteAGVDB(timetext);
 
                 // 그리드뷰에서 삭제
                 gridView1.DeleteRow(gridView1.FocusedRowHandle);
@@ -294,76 +381,71 @@ namespace DevExpressExample
 
             pictureEdit1.Properties.NullText = " ";
 
+            // 시작 위치에 원 위치
+            g.FillEllipse(Brushes.Blue, rec);
 
-            this.Invoke(new MethodInvoker(() =>
+            // 경로 선 긋기
+            g.DrawLine(linePen, HeightLinePoint, HeightLinePoint2);
+            g.DrawLine(linePen, HeightLinePoint3, HeightLinePoint4);
+
+            // 이동 경로 선긋기
+            if (isSetPath)
             {
-                // 시작 위치에 원 위치
-                g.FillEllipse(Brushes.Blue, rec);
-
-                // 경로 선 긋기 - 세로방향
-                g.DrawLine(linePen, HeightLinePoint, HeightLinePoint2);
-                g.DrawLine(linePen, HeightLinePoint3, HeightLinePoint4);
-
-                // 이동 경로 선긋기
-                if (isSetPath)
+                if (outRange == true)
                 {
-                    if (outRange == true)
-                    {
+                    g.DrawLine(pathPen, new Point(cur_position_x + 25, cur_position_y + 25), new Point(cur_position_x + 25, des + 25));
+                    g.DrawLine(pathPen, new Point(cur_position_x + 25, des + 25), new Point(rackPoint.X + 25, des + 25));
+                    g.DrawLine(pathPen, new Point(rackPoint.X + 25, des + 25), new Point(rackPoint.X + 25, rackPoint.Y + 25));
 
-
-                        g.DrawLine(pathPen, new Point(rec.X + 25, rec.Y + 25), new Point(rec.X + 25, des + 25));
-                        g.DrawLine(pathPen, new Point(rec.X + 25, des + 25), new Point(rackPoint.X + 25, des + 25));
-                        g.DrawLine(pathPen, new Point(rackPoint.X + 25, des + 25), new Point(rackPoint.X + 25, rackPoint.Y + 25));
-                    }
-                    else
-                    {
-                        g.DrawLine(pathPen, new Point(rec.X + 25, rec.Y + 25), new Point(rackPoint.X + 25, rec.Y + 25));
-                        g.DrawLine(pathPen, new Point(rackPoint.X + 25, rec.Y + 25), new Point(rackPoint.X + 25, rackPoint.Y + 25));
-                    }
                 }
-
-                // 랙 라인 생성
-                for (int i = 1; i < 5; i++)
+                else
                 {
-                    g.DrawLine(linePen, new Point(50 + 180 * i, 50), new Point(50 + 180 * i, 365));
-
-                    // 랙 포인트 생성  (초록색 점)
-                    for (int j = 1; j < 8; j++)
-                    {
-                        g.FillEllipse(Brushes.Green, 45 + 180 * i, 45 * j, 10, 10);
-                    }
+                    g.DrawLine(pathPen, new Point(cur_position_x + 25, cur_position_y + 25), new Point(rackPoint.X + 25, cur_position_y + 25));
+                    g.DrawLine(pathPen, new Point(rackPoint.X + 25, cur_position_y + 25), new Point(rackPoint.X + 25, rackPoint.Y + 25));
                 }
+            }
 
-                // 경로 선 긋기 - 가로방향
-                g.DrawLine(linePen, WidthLinePoint, WidthLinePoint2);
-                g.DrawLine(linePen, WidthLinePoint3, WidthLinePoint4);
 
-                // 경로선에 포인트 표시 (검은 점)
-                for (int i = 1; i < 20; i++)
+
+
+            for (int i = 1; i < 5; i++)
+            {
+                g.DrawLine(linePen, new Point(50 + 180 * i, 50), new Point(50 + 180 * i, 365));
+
+                // 랙 이동 경로 생성  (초록색 점)
+                for (int j = 1; j < 8; j++)
                 {
-                    // 가로 깔기
-                    g.FillEllipse(Brushes.Black, (HeightLinePoint.X - 5) * (i + 1), HeightLinePoint.Y - 5, 10, 10);
-                    g.FillEllipse(Brushes.Black, (HeightLinePoint2.X - 5) * (i + 1), HeightLinePoint2.Y - 5, 10, 10);
+                    g.FillEllipse(Brushes.Green, 45 + 180 * i, 45 * j, 10, 10);
                 }
+            }
+            g.DrawLine(linePen, WidthLinePoint, WidthLinePoint2);
+            g.DrawLine(linePen, WidthLinePoint3, WidthLinePoint4);
 
-                for (int i = 1; i < 9; i++)
-                {
-                    //세로 깔기 
-                    g.FillEllipse(Brushes.Black, WidthLinePoint.X - 5, (WidthLinePoint.Y - 5) * i, 10, 10);
-                    g.FillEllipse(Brushes.Black, WidthLinePoint2.X - 5, (WidthLinePoint2.Y - 5) * i, 10, 10);
-                }
+            // 선에 노드 표시 
+            for (int i = 1; i < 20; i++)
+            {
+                // 가로 깔기
+                g.FillEllipse(Brushes.Black, (HeightLinePoint.X - 5) * (i + 1), HeightLinePoint.Y - 5, 10, 10);
+                g.FillEllipse(Brushes.Black, (HeightLinePoint2.X - 5) * (i + 1), HeightLinePoint2.Y - 5, 10, 10);
+            }
 
-                // 랙 깔기
-                for (int j = 0; j < 4; j++)
+            for (int i = 1; i < 9; i++)
+            {
+                //세로 깔기 
+                g.FillEllipse(Brushes.Black, WidthLinePoint.X - 5, (WidthLinePoint.Y - 5) * i, 10, 10);
+                g.FillEllipse(Brushes.Black, WidthLinePoint2.X - 5, (WidthLinePoint2.Y - 5) * i, 10, 10);
+
+            }
+
+            // 랙 깔기
+            for (int j = 0; j < 4; j++)
+            {
+                for (int i = 0; i < 6; i++)
                 {
-                    for (int i = 0; i < 6; i++)
-                    {
-                        // 랙 깔기
-                        g.DrawRectangle(Pens.Brown, rack.X + (180 * j), rack.Y + (45 * i), 30, 45);
-                    }
+                    // 랙 깔기
+                    g.DrawRectangle(Pens.Brown, rack.X + (180 * j), rack.Y + (45 * i), 30, 45);
                 }
-            }));
-            
+            }
         }
 
         // AGV 클릭시 agv 팝업창 뜸.
@@ -387,6 +469,107 @@ namespace DevExpressExample
             RackUnLoadBtn.Enabled = false;
             ReceivePathBtn.Enabled = false;
             ReleasePathBtn.Enabled = false;
+
+            *//*// 랙으로 이동할때 
+            int racknodeNum = (int)Math.Ceiling((float)rackNum / 6) * 4;
+
+
+            // 초기위치에서 랙으로 이동할때
+            if(numcount != racknodeNum)
+            {
+                // 만약 현재 x좌표가 해당 노드를 지나가면
+                if (rec.X == backgroundlinklist[numcount].node2.X)
+                {
+                    numcount++;
+                }
+                else
+                {
+                    // 만약 현재 위치보다 목적지 x좌표가 크다면 정방향
+                    if(rec.X < racklinklist[rackNum - 1].node2.X)
+                    {
+                        backgroundlinklist[numcount].x_speed = 3;
+                    }
+
+                    else if(rec.X == racklinklist[rackNum - 1].node2.X)
+                    {
+                        backgroundlinklist[numcount].x_speed = 0;
+                    }
+
+                    else if (rec.X > racklinklist[rackNum - 1].node2.X)
+                    {
+                        backgroundlinklist[numcount].x_speed = -3;
+                    }
+                    
+                    backgroundlinklist[numcount].y_speed = 0;
+                }
+            }
+            else
+            {
+                // 만약 랙 y좌표에 도달하지 않았다면 
+                if (rec.Y != racklinklist[rackNum-1].node1.Y)
+                {
+                    backgroundlinklist[numcount].x_speed = 0;
+
+                    if (rec.Y < racklinklist[rackNum - 1].node1.Y)
+                    {
+                        backgroundlinklist[numcount].y_speed = 3;
+                    }
+                    else if (rec.Y > racklinklist[rackNum-1].node1.Y)
+                    {
+                        backgroundlinklist[numcount].y_speed = -3;
+                    }
+                }
+                else
+                {
+                    cur_position_y = rec.Y;
+                    backgroundlinklist[numcount].x_speed = 0;
+                    backgroundlinklist[numcount].y_speed = 0;
+                    timer1.Stop();
+                }
+            }
+
+            // 경로 벗어나서는 이동 불가능
+            if (((rec.X > 25 && rec.X < 205) || (rec.X > 205 && rec.X < 385) || (rec.X > 385 && rec.X < 565) || (rec.X > 565 && rec.X < 745) || (rec.X > 745 && rec.X < 925)) && (rec.Y > 25 && rec.Y < 320) || (rec.X > 925 || rec.X < 25) || (rec.Y > 340 || rec.Y < 25))
+            {
+                outRange = true;
+                rec.X = cur_position_x;
+                rec.Y = cur_position_y;
+            }
+
+            if (outRange == true)
+            {
+                // 위와 아래 경로 중  y 거리가 짧은 경로로 이동
+                // 아래 거리가 짧을경우 아래로 
+                if (rec.Y - 25 + racklinklist[rackNum-1].node1.Y - 25 > 340 - rec.Y + 340 - racklinklist[rackNum - 1].node1.Y)
+                {
+                    racklinklist[rackNum - 1].y_speed = 3;
+                    rec.Y += racklinklist[rackNum - 1].y_speed;
+                    des = 340;
+                }
+
+                // 위 거리가 짧을경우 위로 
+                else
+                {
+                    racklinklist[rackNum - 1].y_speed = -3;
+                    rec.Y += racklinklist[rackNum - 1].y_speed;
+                    des = 25;
+                }
+            }
+
+            // 해당 라인을 벗어나면 다시 x축으로 이동할 수있도록 함.
+            if (rec.Y == 340 || rec.Y == 25)
+            {
+                outRange = false;
+                cur_position_x = rec.X;
+                cur_position_y = rec.Y;
+            }
+
+            // AGV에 링크 속도주기
+            if (outRange == false)
+            {
+                rec.X += backgroundlinklist[numcount].x_speed;
+                rec.Y += backgroundlinklist[numcount].y_speed;
+            }*//*
 
 
             // 랙 위치 포인트
@@ -457,6 +640,7 @@ namespace DevExpressExample
             if (((rec.X > 25 && rec.X < 205) || (rec.X > 205 && rec.X < 385) || (rec.X > 385 && rec.X < 565) || (rec.X > 565 && rec.X < 745) || (rec.X > 745 && rec.X < 925)) && (rec.Y > 25 && rec.Y < 320) || (rec.X > 925 || rec.X < 25) || (rec.Y > 340 || rec.Y < 25))
             {
                 outRange = true;
+
                 rec.X = cur_position_x;
                 rec.Y = cur_position_y;
             }
@@ -467,6 +651,7 @@ namespace DevExpressExample
                 // 아래 거리가 짧을경우 아래로 
                 if (rec.Y - 25 + rackPoint.Y - 25 > 340 - rec.Y + 340 - rackPoint.Y)
                 {
+
                     rec.Y += y_speed;
                     des = 340;
                 }
@@ -522,7 +707,7 @@ namespace DevExpressExample
                     ReleasePathBtn.Enabled = false;
                     RackLoadBtn.Enabled = false;
                     state = "출고지 정차";
-                    movingPath += "출고지 > ";
+                    movingPath += "출고지 ";
                     agv.timer1.Enabled = false;
                     timer2.Stop();
                 }
@@ -535,7 +720,7 @@ namespace DevExpressExample
                     RackLoadBtn.Enabled = false;
                     RackUnLoadBtn.Enabled = false;
                     state = "입고지 정차";
-                    movingPath += "입고지 > ";
+                    movingPath += "입고지 ";
                     agv.timer1.Enabled = false;
                     timer2.Stop();
                 }
@@ -571,11 +756,13 @@ namespace DevExpressExample
             // 이동 중 적재 불가
             RackLoadBtn.Enabled = false;
             RackUnLoadBtn.Enabled = false;
-            ResetPathBtn.Enabled = true;
-
 
             // 움직이기 시작하면 중지버튼 활성화
             agv.pauseBtn.Enabled = true;
+
+            // 초기화
+            isRelease = false;
+            isReceive = false;
 
             // null값 허용 x 
             if (rackNumTxt.Text.Length != 0)
@@ -594,19 +781,9 @@ namespace DevExpressExample
                 return;
             }
 
-            
-            // 랙에 있을때는 전 랙 번호를 추가
-            if (isRelease == false && isReceive == false)
-            {
-                beforenum.Add(rackNum);
-            }
-            // 입고지, 출고지에 도착했을때는 racknum대신 -1로 두어 에러 방지
-            else
-            {
-                beforenum.Add(-1);
-            }
-
             // 현재 위치한 랙 번호와 같은 번호로는 경로지정 불가 
+            beforenum.Add(rackNum);
+
             if (beforenum[0] == beforenum[1])
             {
                 MessageBox.Show("이미 해당 랙에 위치해 있습니다.", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -618,17 +795,11 @@ namespace DevExpressExample
                 beforenum.RemoveAt(0);
             }
 
-            // 초기화
-            isRelease = false;
-            isReceive = false;
-
-
             LogListBox.Items.Add(now + $"     {rackNum}번 랙으로 이동");
             startBtn.Enabled = false;
             outRange = false;
-            // 이동 타이머
+
             timer1.Start();
-            // 팝업창 내의 시간 타이머
             timer2.Start();
         }
 
@@ -660,6 +831,8 @@ namespace DevExpressExample
         // 화물 unload
         private void RackUnloadBtn_Click(object sender, EventArgs e)
         {
+            isRelease = true;
+
             // 현재 시간
             string now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
@@ -705,8 +878,6 @@ namespace DevExpressExample
 
                         // AGV DB에 데이터 추가
                         msSqlExample.InsertAGVDB(name, path, unloads, worktime, unloadtime, unloadnum, state);
-
-                        MessageBox.Show("출고지에 Unload 완료!","완료");
                     }
 
                     // 랙에서는 해당 번호의 화물만 unload
@@ -731,6 +902,7 @@ namespace DevExpressExample
                     MessageBox.Show("Unload할 화물이 없습니다.", "에러", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     state = "에러";
                     msSqlExample.InsertAGVDB(name, path, "", worktime, now, releaseCount, state);
+
                     return;
                 }
             }
@@ -748,12 +920,15 @@ namespace DevExpressExample
         // 입고위치로 이동(초기 위치)
         private void ReceivePathBtn_Click(object sender, EventArgs e)
         {
+
+            isReceive = true;
+
             // 현재 시간
             string now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
             LogListBox.Items.Add(now + "     초기 위치로 돌아갑니다.");
             isReceive = true;
-            //isRelease = false;
+            isRelease = false;
             rackNumTxt.Text = "";
             RackLoadBtn.Enabled = false;
             RackUnLoadBtn.Enabled = false;
@@ -769,11 +944,10 @@ namespace DevExpressExample
             string now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
             LogListBox.Items.Add(now + "     출고점으로 이동합니다.");
-            //isReceive = false;
+            isReceive = false;
             isRelease = true;
             timer1.Start();
             timer2.Start();
-
         }
 
         // 숫자만 받도록
@@ -832,21 +1006,21 @@ namespace DevExpressExample
 
             string now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
-            rackPoint = new Point(25, 25);
+            LogListBox.Items.Add(now + "     초기화");
+
+            // 새로운 로그가 있을때 자동으로 스크롤바 내림.
+            LogListBox.MakeItemVisible(LogListBox.ItemCount);
 
             rackNumTxt.Text = "";
             isReceive = false;
             isRelease = false;
 
             // 버튼 비활성화
-            startBtn.Enabled = true;
             ResetPathBtn.Enabled = false;
             ReceivePathBtn.Enabled = false;
             ReleasePathBtn.Enabled = true;
             RackLoadBtn.Enabled = false;
             RackUnLoadBtn.Enabled = false;
-
-            beforenum = new List<int> { 0 };
 
             // 보유 화물 클리어
             rackList.Clear();
@@ -890,4 +1064,4 @@ namespace DevExpressExample
 
     }
 
-}
+}*/

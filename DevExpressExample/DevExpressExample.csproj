@@ -55,6 +55,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AGVForm02.cs" />
     <Compile Include="AGVInfo.cs">
       <SubType>Form</SubType>
     </Compile>

@@ -44,17 +44,19 @@ namespace DevExpressExample
             // IdBox
             // 
             this.IdBox.Font = new System.Drawing.Font("Tahoma", 16.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.IdBox.Location = new System.Drawing.Point(403, 266);
+            this.IdBox.Location = new System.Drawing.Point(353, 207);
+            this.IdBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.IdBox.Name = "IdBox";
-            this.IdBox.Size = new System.Drawing.Size(491, 40);
+            this.IdBox.Size = new System.Drawing.Size(430, 34);
             this.IdBox.TabIndex = 0;
             // 
             // PasswordBox
             // 
             this.PasswordBox.Font = new System.Drawing.Font("Tahoma", 16.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.PasswordBox.Location = new System.Drawing.Point(403, 362);
+            this.PasswordBox.Location = new System.Drawing.Point(353, 282);
+            this.PasswordBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.PasswordBox.Name = "PasswordBox";
-            this.PasswordBox.Size = new System.Drawing.Size(491, 40);
+            this.PasswordBox.Size = new System.Drawing.Size(430, 34);
             this.PasswordBox.TabIndex = 1;
             this.PasswordBox.TextChanged += new System.EventHandler(this.PasswordBox_TextChanged);
             // 
@@ -62,9 +64,10 @@ namespace DevExpressExample
             // 
             this.labelControl1.Appearance.Font = new System.Drawing.Font("Tahoma", 16.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.labelControl1.Appearance.Options.UseFont = true;
-            this.labelControl1.Location = new System.Drawing.Point(267, 266);
+            this.labelControl1.Location = new System.Drawing.Point(234, 207);
+            this.labelControl1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.labelControl1.Name = "labelControl1";
-            this.labelControl1.Size = new System.Drawing.Size(100, 34);
+            this.labelControl1.Size = new System.Drawing.Size(73, 27);
             this.labelControl1.TabIndex = 2;
             this.labelControl1.Text = "아이디 : ";
             // 
@@ -72,9 +75,10 @@ namespace DevExpressExample
             // 
             this.labelControl2.Appearance.Font = new System.Drawing.Font("Tahoma", 16.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.labelControl2.Appearance.Options.UseFont = true;
-            this.labelControl2.Location = new System.Drawing.Point(243, 362);
+            this.labelControl2.Location = new System.Drawing.Point(217, 282);
+            this.labelControl2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.labelControl2.Name = "labelControl2";
-            this.labelControl2.Size = new System.Drawing.Size(124, 34);
+            this.labelControl2.Size = new System.Drawing.Size(90, 27);
             this.labelControl2.TabIndex = 3;
             this.labelControl2.Text = "비밀번호 : ";
             // 
@@ -82,9 +86,10 @@ namespace DevExpressExample
             // 
             this.LoginBtn.Appearance.Font = new System.Drawing.Font("Tahoma", 16.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.LoginBtn.Appearance.Options.UseFont = true;
-            this.LoginBtn.Location = new System.Drawing.Point(494, 567);
+            this.LoginBtn.Location = new System.Drawing.Point(432, 441);
+            this.LoginBtn.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.LoginBtn.Name = "LoginBtn";
-            this.LoginBtn.Size = new System.Drawing.Size(190, 60);
+            this.LoginBtn.Size = new System.Drawing.Size(166, 47);
             this.LoginBtn.TabIndex = 4;
             this.LoginBtn.Text = "로그인";
             this.LoginBtn.Click += new System.EventHandler(this.LoginBtn_Click);
@@ -95,9 +100,10 @@ namespace DevExpressExample
             this.UserCreate.Appearance.ForeColor = System.Drawing.SystemColors.Highlight;
             this.UserCreate.Appearance.Options.UseFont = true;
             this.UserCreate.Appearance.Options.UseForeColor = true;
-            this.UserCreate.Location = new System.Drawing.Point(480, 489);
+            this.UserCreate.Location = new System.Drawing.Point(420, 380);
+            this.UserCreate.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.UserCreate.Name = "UserCreate";
-            this.UserCreate.Size = new System.Drawing.Size(64, 24);
+            this.UserCreate.Size = new System.Drawing.Size(56, 19);
             this.UserCreate.TabIndex = 5;
             this.UserCreate.Text = "회원가입";
             this.UserCreate.Click += new System.EventHandler(this.UserCreate_Click);
@@ -108,9 +114,10 @@ namespace DevExpressExample
             this.FindPassword.Appearance.ForeColor = System.Drawing.SystemColors.Highlight;
             this.FindPassword.Appearance.Options.UseFont = true;
             this.FindPassword.Appearance.Options.UseForeColor = true;
-            this.FindPassword.Location = new System.Drawing.Point(624, 489);
+            this.FindPassword.Location = new System.Drawing.Point(546, 380);
+            this.FindPassword.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.FindPassword.Name = "FindPassword";
-            this.FindPassword.Size = new System.Drawing.Size(158, 24);
+            this.FindPassword.Size = new System.Drawing.Size(137, 19);
             this.FindPassword.TabIndex = 6;
             this.FindPassword.Text = "아이디/비밀번호 찾기";
             this.FindPassword.Click += new System.EventHandler(this.FindId_Click);
@@ -121,9 +128,10 @@ namespace DevExpressExample
             this.WrongTxt.Appearance.ForeColor = System.Drawing.Color.Red;
             this.WrongTxt.Appearance.Options.UseFont = true;
             this.WrongTxt.Appearance.Options.UseForeColor = true;
-            this.WrongTxt.Location = new System.Drawing.Point(394, 449);
+            this.WrongTxt.Location = new System.Drawing.Point(345, 349);
+            this.WrongTxt.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.WrongTxt.Name = "WrongTxt";
-            this.WrongTxt.Size = new System.Drawing.Size(0, 33);
+            this.WrongTxt.Size = new System.Drawing.Size(0, 27);
             this.WrongTxt.TabIndex = 7;
             // 
             // IdLabel
@@ -132,9 +140,10 @@ namespace DevExpressExample
             this.IdLabel.Appearance.ForeColor = System.Drawing.Color.Red;
             this.IdLabel.Appearance.Options.UseFont = true;
             this.IdLabel.Appearance.Options.UseForeColor = true;
-            this.IdLabel.Location = new System.Drawing.Point(412, 312);
+            this.IdLabel.Location = new System.Drawing.Point(360, 243);
+            this.IdLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.IdLabel.Name = "IdLabel";
-            this.IdLabel.Size = new System.Drawing.Size(0, 28);
+            this.IdLabel.Size = new System.Drawing.Size(0, 22);
             this.IdLabel.TabIndex = 8;
             // 
             // PasswordLabel
@@ -143,16 +152,17 @@ namespace DevExpressExample
             this.PasswordLabel.Appearance.ForeColor = System.Drawing.Color.Red;
             this.PasswordLabel.Appearance.Options.UseFont = true;
             this.PasswordLabel.Appearance.Options.UseForeColor = true;
-            this.PasswordLabel.Location = new System.Drawing.Point(412, 408);
+            this.PasswordLabel.Location = new System.Drawing.Point(360, 317);
+            this.PasswordLabel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.PasswordLabel.Name = "PasswordLabel";
-            this.PasswordLabel.Size = new System.Drawing.Size(0, 28);
+            this.PasswordLabel.Size = new System.Drawing.Size(0, 22);
             this.PasswordLabel.TabIndex = 9;
             // 
             // Login
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 18F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 14F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1172, 821);
+            this.ClientSize = new System.Drawing.Size(1026, 639);
             this.Controls.Add(this.PasswordLabel);
             this.Controls.Add(this.IdLabel);
             this.Controls.Add(this.WrongTxt);
@@ -163,6 +173,7 @@ namespace DevExpressExample
             this.Controls.Add(this.labelControl1);
             this.Controls.Add(this.PasswordBox);
             this.Controls.Add(this.IdBox);
+            this.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.Name = "Login";
             this.Text = "Login";
             this.ResumeLayout(false);
